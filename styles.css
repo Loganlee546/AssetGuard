@@ -181,6 +181,80 @@ main {
   gap: 16px;
 }
 
+/* Floating Help Button */
+.floating-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent-purple);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 15px rgba(108, 92, 231, 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  z-index: 999;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.floating-btn:hover {
+  transform: scale(1.1) rotate(15deg);
+  box-shadow: 0 6px 20px rgba(108, 92, 231, 0.6);
+}
+
+/* Guide Modal Items */
+.guide-item {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-color);
+  transition: transform 0.2s ease;
+}
+
+.guide-item:hover {
+  transform: translateX(5px);
+  border-color: var(--accent-purple);
+}
+
+.guide-item i {
+  font-size: 24px;
+  color: var(--accent-purple);
+  margin-top: 4px;
+  width: 32px;
+  text-align: center;
+}
+
+.guide-item h4 {
+  margin: 0 0 4px 0;
+  color: var(--text-primary);
+}
+
+.guide-item p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Responsive adjust for floating btn */
+@media (max-width: 768px) {
+  .floating-btn {
+    bottom: 20px;
+    right: 20px;
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+}
+
 @media (min-width: 1024px) {
   .controls-card {
     flex-direction: row;

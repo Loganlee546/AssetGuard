@@ -829,11 +829,11 @@ function setupEventListeners() {
     openModal("settings-modal");
   });
 
-  // Magic URL Sniffer
-  on("api-magic-url", "input", (e) => {
-    const url = e.target.value.trim();
-    if (!url) return;
-
+  // Magic URL Sniffer (Global Paste Listener for Settings)
+  on("settings-modal", "paste", (e) => {
+    const url = (e.clipboardData || window.clipboardData).getData('text').trim();
+    if (!url || !url.includes("atlassian.net")) return; 
+    
     // Regex to extract Cloud ID and Workspace ID from typical Atlassian Assets URL
     // Format: https://your-site.atlassian.net/jira/servicedesk/assets/[CLOUD_ID]/[WORKSPACE_ID]
     // Or: https://[CLOUD_ID].atlassian.net/...
@@ -942,6 +942,18 @@ function setupEventListeners() {
     closeModal("scanner-modal");
   });
   
+  on("floating-help-btn", "click", () => {
+    openModal("app-guide-modal");
+  });
+
+  on("guide-close-btn", "click", () => {
+    closeModal("app-guide-modal");
+  });
+
+  on("guide-got-it-btn", "click", () => {
+    closeModal("app-guide-modal");
+  });
+
   on("global-history-trigger-btn", "click", () => {
     openModal("global-history-modal");
     populateYearFilter();

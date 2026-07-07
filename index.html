@@ -311,24 +311,27 @@
     <div class="modal-content" style="max-width: 500px;">
       <div class="modal-header">
         <h2 data-i18n="atlassian_connection">Atlassian Connection</h2>
-        <button id="settings-close-btn" class="modal-close-btn">&times;</button>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button id="settings-help-btn" class="btn btn-secondary btn-sm" style="padding: 6px 12px; background: var(--accent-purple); color: white; border: none; font-weight: bold; border-radius: 8px;">
+            <i class="fa-solid fa-circle-question"></i> <span data-i18n="btn_help">Help</span>
+          </button>
+          <button id="settings-close-btn" class="modal-close-btn">&times;</button>
+        </div>
       </div>
       <div class="modal-body">
-        <form id="settings-form">
-          <div class="form-group" style="background: var(--bg-secondary); padding: 16px; border-radius: var(--radius-md); border-left: 4px solid var(--accent-blue); margin-bottom: 24px;">
-            <label style="font-weight: 600; color: var(--accent-blue);" data-i18n="magic_setup">✨ Magic Setup</label>
-            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" data-i18n="magic_setup_desc">Paste your Atlassian Assets URL here to auto-fill IDs</p>
-            <input type="text" id="api-magic-url" class="form-input" placeholder="https://your-company.atlassian.net/jira/servicedesk/assets/..." style="border-color: var(--accent-blue);">
-          </div>
+        <!-- Help Section (Hidden by default) -->
+        <div id="settings-help-section" class="guide-section" style="display: none; margin-bottom: 20px; padding: 16px; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--accent-purple);">
+          <h4 style="margin-top: 0; color: var(--accent-purple);"><i class="fa-solid fa-lightbulb"></i> <span data-i18n="help_guide_title">Setup Guide</span></h4>
+          <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; line-height: 1.6;">
+            <li data-i18n="help_step_1">Go to your Jira Assets page and copy the URL.</li>
+            <li data-i18n="help_step_2">Paste it anywhere in this window to auto-fill your IDs.</li>
+            <li data-i18n="help_step_3">Get an API Token from your Atlassian Account security settings.</li>
+            <li data-i18n="help_step_4">Click "Save Changes" before trying to sync.</li>
+          </ul>
+          <button id="close-help-btn" class="btn btn-secondary btn-sm" style="width: 100%; margin-top: 8px;" data-i18n="btn_got_it">Got it!</button>
+        </div>
 
-          <div class="form-group">
-            <label data-i18n="cloud_id">Atlassian Cloud ID</label>
-            <input type="text" id="api-cloud-id" class="form-input" placeholder="e.g. 12345678-abcd-..." required>
-          </div>
-          <div class="form-group">
-            <label data-i18n="workspace_id">Assets Workspace ID</label>
-            <input type="text" id="api-workspace-id" class="form-input" placeholder="e.g. 98765432-efgh-..." required>
-          </div>
+        <form id="settings-form">
           <div class="form-group">
             <label data-i18n="atlassian_email">Atlassian Email</label>
             <input type="email" id="api-email" class="form-input" placeholder="your-email@company.com" required>
@@ -337,6 +340,8 @@
             <label data-i18n="api_token">API Token</label>
             <input type="password" id="api-token" class="form-input" placeholder="Enter your API Token" required>
           </div>
+          <!-- Invisible Magic Sniffer -->
+          <input type="text" id="api-magic-url" style="display: none;">
           <div style="display: flex; gap: 12px; margin-top: 24px; flex-direction: column;">
             <button type="submit" class="btn btn-primary" style="width: 100%;" data-i18n="save_changes">Save Changes</button>
             <div style="display: flex; gap: 12px; width: 100%;">
@@ -359,8 +364,54 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
-  <script src="translations.js"></script>
+  <!-- Floating Help Button -->
+  <button id="floating-help-btn" class="floating-btn" title="App Guide">
+    <i class="fa-solid fa-question"></i>
+  </button>
+
+  <!-- App Guide Modal -->
+  <div id="app-guide-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2 data-i18n="modal_guide_title">App Guide</h2>
+        <button id="guide-close-btn" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="guide-item">
+          <i class="fa-solid fa-users"></i>
+          <div>
+            <h4 data-i18n="guide_people_title">People Directory</h4>
+            <p data-i18n="guide_people_desc">See a list of everyone who currently has company equipment and what they are holding.</p>
+          </div>
+        </div>
+        <div class="guide-item">
+          <i class="fa-solid fa-qrcode"></i>
+          <div>
+            <h4 data-i18n="guide_scan_title">QR Scanner</h4>
+            <p data-i18n="guide_scan_desc">Use your iPad camera to scan the QR tag on any piece of equipment to see its history or check it in/out.</p>
+          </div>
+        </div>
+        <div class="guide-item">
+          <i class="fa-solid fa-filter"></i>
+          <div>
+            <h4 data-i18n="guide_filter_title">Filters & Search</h4>
+            <p data-i18n="guide_filter_desc">Quickly find specific items by typing a name or filtering by category (Laptops, Tablets, etc.).</p>
+          </div>
+        </div>
+        <div class="guide-item">
+          <i class="fa-solid fa-sync"></i>
+          <div>
+            <h4 data-i18n="guide_sync_title">Atlassian Sync</h4>
+            <p data-i18n="guide_sync_desc">Pull your real inventory data directly from Jira Service Management Assets.</p>
+          </div>
+        </div>
+        <button id="guide-got-it-btn" class="btn btn-primary" style="width: 100%; margin-top: 20px;" data-i18n="btn_got_it">Got it!</button>
+      </div>
+    </div>
+  </div>
+
   <script src="assets.js"></script>
+  <script src="translations.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

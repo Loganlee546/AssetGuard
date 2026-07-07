@@ -1,1 +1,80 @@
-window.itAssetSeeds = [];
+window.itAssetSeeds = [
+  {
+    id: "LAP-TEST-101",
+    name: "MacBook Pro M3",
+    category: "Laptop",
+    status: "Open",
+    owner: "",
+    location: "Main HQ",
+    condition: "New",
+    serialNumber: "SN-M3-101",
+    acquisitionDate: "2026-06-01",
+    specs: { cpu: "M3 Pro", ram: "18GB", storage: "512GB SSD", os: "macOS Sonoma" },
+    history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
+  },
+  {
+    id: "LAP-TEST-102",
+    name: "Dell Precision 5570",
+    category: "Laptop",
+    status: "Owned",
+    owner: "Alex Rivera",
+    location: "Remote",
+    condition: "Excellent",
+    serialNumber: "SN-DELL-102",
+    acquisitionDate: "2026-05-15",
+    specs: { cpu: "Intel i9", ram: "32GB", storage: "1TB SSD", os: "Windows 11" },
+    history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
+  },
+  {
+    id: "LAP-TEST-103",
+    name: "ThinkPad Z13",
+    category: "Laptop",
+    status: "Open",
+    owner: "",
+    location: "IT Room",
+    condition: "Good",
+    serialNumber: "SN-LEN-103",
+    acquisitionDate: "2026-04-20",
+    specs: { cpu: "AMD Ryzen 7", ram: "16GB", storage: "512GB SSD", os: "Windows 11 Pro" },
+    history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
+  },
+  {
+    id: "LAP-TEST-104",
+    name: "Surface Laptop Studio",
+    category: "Laptop",
+    status: "Not Working",
+    owner: "Sarah Chen",
+    location: "Repair Shelf",
+    condition: "Keyboard Issue",
+    serialNumber: "SN-MS-104",
+    acquisitionDate: "2026-01-10",
+    specs: { cpu: "Intel i7", ram: "16GB", storage: "256GB SSD", os: "Windows 11" },
+    history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
+  },
+  {
+    id: "LAP-TEST-105",
+    name: "Asus Zenbook Duo",
+    category: "Laptop",
+    status: "Owned",
+    owner: "Mark Wilson",
+    location: "London Office",
+    condition: "New",
+    serialNumber: "SN-ASUS-105",
+    acquisitionDate: "2026-06-10",
+    specs: { cpu: "Intel i7", ram: "16GB", storage: "1TB SSD", os: "Windows 11" },
+    history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
+  },
+  {
+    id: "LAP-TEST-106",
+    name: "Framework Laptop 13",
+    category: "Laptop",
+    status: "Open",
+    owner: "",
+    location: "IT Storage",
+    condition: "Good",
+    serialNumber: "SN-FW-106",
+    acquisitionDate: "2026-03-05",
+    specs: { cpu: "Intel i5", ram: "16GB", storage: "512GB SSD", os: "Linux Mint" },
+    history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
+  }
+];
