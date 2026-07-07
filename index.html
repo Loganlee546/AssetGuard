@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AssetGuard | IT Asset Management Assistant</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header>
+    <div class="header-container">
+      <div class="header-actions">
+        <button id="settings-btn" class="btn btn-secondary" aria-label="Settings">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+        <button id="lang-toggle-btn" class="btn btn-secondary">EN / ES</button>
+      </div>
+      <div class="brand">
+        <div class="brand-icon">AG</div>
+        <h1 data-i18n="brand_name">AssetGuard</h1>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card">
+          <span class="metric-label" data-i18n="total_assets">Total Assets</span>
+          <span class="metric-value" id="metric-total">0</span>
+        </div>
+        <div class="metric-card open-metric">
+          <span class="metric-label" data-i18n="open_assets">Open</span>
+          <span class="metric-value" id="metric-open">0</span>
+        </div>
+        <div class="metric-card owned-metric">
+          <span class="metric-label" data-i18n="owned_assets">Owned</span>
+          <span class="metric-value" id="metric-owned">0</span>
+        </div>
+        <div class="metric-card broken-metric">
+          <span class="metric-label" data-i18n="not_working_assets">Broken</span>
+          <span class="metric-value" id="metric-broken">0</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="controls-card">
+      <div class="search-container">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input type="text" id="search-bar" data-i18n-placeholder="search_placeholder" placeholder="Search assets...">
+      </div>
+      <div class="controls-actions">
+        <div class="main-controls">
+          <button id="add-asset-btn" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> <span data-i18n="add_asset">Add Asset</span>
+          </button>
+          <button id="scan-qr-btn" class="btn btn-secondary">
+            <i class="fa-solid fa-qrcode"></i> <span data-i18n="scan_qr">Scan QR Code</span>
+          </button>
+          <button id="people-directory-trigger-btn" class="btn btn-secondary">
+            <i class="fa-solid fa-users"></i> <span data-i18n="people">People</span>
+          </button>
+          <button id="global-history-btn" class="btn btn-secondary">
+            <i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="history_title">Audit History</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="category-tabs" id="category-tabs">
+      <button class="tab-btn active" data-category="All" data-i18n="all_categories">All Categories</button>
+      <button class="tab-btn" data-category="Laptop" data-i18n="laptop">Laptops</button>
+      <button class="tab-btn" data-category="Tablet" data-i18n="tablet">Tablets</button>
+      <button class="tab-btn" data-category="Phone" data-i18n="phone">Phones</button>
+      <button class="tab-btn" data-category="Monitor" data-i18n="monitor">Monitors</button>
+      <button class="tab-btn" data-category="Other" data-i18n="other">Others</button>
+    </div>
+
+    <div class="status-filters" id="status-filters">
+      <button class="filter-chip active" data-status="All" data-i18n="all_assets">All Status</button>
+      <button class="filter-chip" data-status="Open" data-i18n="status_open">Available</button>
+      <button class="filter-chip" data-status="Owned" data-i18n="status_owned">In Use</button>
+      <button class="filter-chip" data-status="Not Working" data-i18n="status_not_working">Broken</button>
+    </div>
+
+    <div id="results-counter" style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;"></div>
+
+    <div class="asset-grid" id="asset-list-grid"></div>
+
+    <div id="empty-state" style="display: none;">
+      <i class="fa-solid fa-box-open"></i>
+      <h3 data-i18n="no_results">No Assets Found</h3>
+      <p data-i18n="no_results_desc">Adjust filters to find assets.</p>
+    </div>
+  </main>
+
+  <!-- Asset Details Modal -->
+  <div id="details-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="details-modal-title">ASSET-ID</h2>
+        <button id="details-close-btn" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="detail-tabs">
+        <button class="detail-tab active" data-tab="overview" data-i18n="details">Overview</button>
+        <button class="detail-tab" data-tab="edit" data-i18n="modal_edit_title">Actions</button>
+        <button class="detail-tab" data-tab="history" data-i18n="history_title">History</button>
+        <button class="detail-tab" data-tab="qr" data-i18n="scan_qr">QR Tag</button>
+      </div>
+      <div class="modal-body">
+        <div id="detail-pane-overview" class="detail-pane active">
+          <div class="asset-meta">
+            <div class="meta-item"><strong data-i18n="asset_id">ID</strong>: <span id="view-id">--</span></div>
+            <div class="meta-item"><strong data-i18n="name">Name</strong>: <span id="view-name">--</span></div>
+            <div class="meta-item"><strong data-i18n="category">Category</strong>: <span id="view-category">--</span></div>
+            <div class="meta-item"><strong data-i18n="serial_number">Serial</strong>: <span id="view-serial">--</span></div>
+            <div class="meta-item"><strong data-i18n="location">Location</strong>: <span id="view-location">--</span></div>
+            <div class="meta-item"><strong data-i18n="status">Status</strong>: <span id="view-status-badge" class="status-badge">--</span></div>
+            <div class="meta-item"><strong data-i18n="owner">Owner</strong>: <span id="view-owner-text">--</span></div>
+          </div>
+          <div style="margin-top: 16px;">
+            <h4 class="detail-label" data-i18n="specs">Specifications</h4>
+            <div id="view-specs-list" class="specs-list"></div>
+          </div>
+          <div style="margin-top: 16px;">
+            <h4 class="detail-label" data-i18n="condition_details">Condition</h4>
+            <p id="view-condition" class="condition-badge">--</p>
+          </div>
+        </div>
+
+        <div id="detail-pane-edit" class="detail-pane">
+          <form id="edit-asset-form">
+            <input type="hidden" id="edit-asset-id">
+            <div class="form-group">
+              <label class="form-label" data-i18n="status">Status</label>
+              <select id="edit-status" class="form-select">
+                <option value="Open" data-i18n="status_open">Open</option>
+                <option value="Owned" data-i18n="status_owned">Owned</option>
+                <option value="Not Working" data-i18n="status_not_working">Not Working</option>
+              </select>
+            </div>
+            <div id="edit-owner-group" class="form-group" style="display: none;">
+              <label class="form-label" data-i18n="owner">Owner</label>
+              <input type="text" id="edit-owner" class="form-input">
+              <div id="error-edit-owner" class="form-error">Owner required.</div>
+            </div>
+            <div id="edit-issue-group" class="form-group" style="display: none;">
+              <label class="form-label" data-i18n="condition_details">Issue</label>
+              <textarea id="edit-condition-notworking" class="form-textarea"></textarea>
+              <div id="error-edit-issue" class="form-error">Issue description required.</div>
+            </div>
+            <div id="edit-condition-normal-group" class="form-group">
+              <label class="form-label" data-i18n="condition">Condition</label>
+              <textarea id="edit-condition-normal" class="form-textarea"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label" data-i18n="location">Location</label>
+              <input type="text" id="edit-location" class="form-input">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;" data-i18n="save_changes">Save Changes</button>
+          </form>
+        </div>
+
+        <div id="detail-pane-history" class="detail-pane">
+          <div id="view-history-timeline" class="history-timeline"></div>
+        </div>
+
+        <div id="detail-pane-qr" class="detail-pane">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 16px;">
+            <div id="asset-qr-code-container" style="padding: 16px; background: white; border-radius: 8px;"></div>
+            <button class="btn btn-secondary" onclick="window.print()" data-i18n="print_tag">Print Tag</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Add Asset Modal -->
+  <div id="add-asset-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="add_asset">Add Asset</h2>
+        <button id="add-asset-close-btn" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="add-asset-form">
+          <div class="form-group">
+            <label class="form-label" data-i18n="asset_id">Asset ID</label>
+            <input type="text" id="add-id" class="form-input" required>
+            <div id="error-add-id-exists" class="form-error">ID already exists.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="model_name">Model Name</label>
+            <input type="text" id="add-name" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="category">Category</label>
+            <select id="add-category" class="form-select">
+              <option value="Laptop" data-i18n="laptop">Laptop</option>
+              <option value="Tablet" data-i18n="tablet">Tablet</option>
+              <option value="Phone" data-i18n="phone">Phone</option>
+              <option value="Monitor" data-i18n="monitor">Monitor</option>
+              <option value="Other" data-i18n="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="serial_number">Serial Number</label>
+            <input type="text" id="add-serial" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="location">Location</label>
+            <input type="text" id="add-location" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="acquisition_date">Acquisition Date</label>
+            <input type="date" id="add-acquisition-date" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label" data-i18n="condition_details">Condition Notes</label>
+            <textarea id="add-condition" class="form-textarea" required></textarea>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+            <div class="form-group"><label class="form-label" data-i18n="cpu">CPU</label><input type="text" id="add-spec-cpu" class="form-input"></div>
+            <div class="form-group"><label class="form-label" data-i18n="ram">RAM</label><input type="text" id="add-spec-ram" class="form-input"></div>
+            <div class="form-group"><label class="form-label" data-i18n="storage">Storage</label><input type="text" id="add-spec-storage" class="form-input"></div>
+            <div class="form-group"><label class="form-label" data-i18n="os">OS</label><input type="text" id="add-spec-os" class="form-input"></div>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%;" data-i18n="register_asset">Register Asset</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- QR Scanner Modal -->
+  <div id="scanner-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 450px;">
+      <div class="modal-header">
+        <h2 data-i18n="modal_scan_title">QR Scanner</h2>
+        <button id="scanner-close-btn" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="scanner-container">
+          <div id="qr-reader"></div>
+        </div>
+        <div id="scanner-output-status" class="scanner-status" style="text-align: center; margin-top: 12px; font-size: 12px; color: var(--text-muted);"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- People Modal -->
+  <div id="people-directory-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2 data-i18n="people">People</h2>
+        <button id="people-directory-close-btn" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="search-container" style="max-width: 100%; margin-bottom: 16px;">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="people-search-input" placeholder="Search people...">
+        </div>
+        <div id="people-list" class="user-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Profile Modal -->
+  <div id="user-profile-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h2 id="user-profile-name">User Profile</h2>
+        <button id="user-profile-close-btn" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="user-profile-stats" style="margin-bottom: 16px; font-weight: 600; color: var(--text-muted);"></div>
+        <div id="user-assets-list" class="user-list"></div>
+        <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
+          <button id="bulk-return-btn" class="btn btn-secondary" style="color: var(--status-error);">Return All Assets</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global History Modal -->
+  <div id="global-history-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <h2 data-i18n="global_history_title">Audit Log</h2>
+        <button id="global-history-close-btn" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+          <select id="global-history-category-filter" class="form-select" style="flex: 1;"><option value="All">All Categories</option></select>
+          <select id="global-history-year-filter" class="form-select" style="flex: 1;"><option value="All">All Years</option></select>
+          <input type="text" id="global-history-search" class="form-input" style="flex: 2;" placeholder="Search logs...">
+        </div>
+        <div id="global-history-timeline" class="history-timeline"></div>
+        <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+          <button id="clear-all-data-btn" class="btn btn-secondary" style="color: var(--status-error);" data-i18n="clear_all_data">Clear All Data</button>
+          <button id="export-data-btn" class="btn btn-secondary" data-i18n="backup_data">Download Backup (.json)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2 data-i18n="atlassian_connection">Atlassian Connection</h2>
+        <button id="settings-close-btn" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="settings-form">
+          <div class="form-group" style="background: var(--bg-secondary); padding: 16px; border-radius: var(--radius-md); border-left: 4px solid var(--accent-blue); margin-bottom: 24px;">
+            <label style="font-weight: 600; color: var(--accent-blue);" data-i18n="magic_setup">✨ Magic Setup</label>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" data-i18n="magic_setup_desc">Paste your Atlassian Assets URL here to auto-fill IDs</p>
+            <input type="text" id="api-magic-url" class="form-input" placeholder="https://your-company.atlassian.net/jira/servicedesk/assets/..." style="border-color: var(--accent-blue);">
+          </div>
+
+          <div class="form-group">
+            <label data-i18n="cloud_id">Atlassian Cloud ID</label>
+            <input type="text" id="api-cloud-id" class="form-input" placeholder="e.g. 12345678-abcd-..." required>
+          </div>
+          <div class="form-group">
+            <label data-i18n="workspace_id">Assets Workspace ID</label>
+            <input type="text" id="api-workspace-id" class="form-input" placeholder="e.g. 98765432-efgh-..." required>
+          </div>
+          <div class="form-group">
+            <label data-i18n="atlassian_email">Atlassian Email</label>
+            <input type="email" id="api-email" class="form-input" placeholder="your-email@company.com" required>
+          </div>
+          <div class="form-group">
+            <label data-i18n="api_token">API Token</label>
+            <input type="password" id="api-token" class="form-input" placeholder="Enter your API Token" required>
+          </div>
+          <div style="display: flex; gap: 12px; margin-top: 24px; flex-direction: column;">
+            <button type="submit" class="btn btn-primary" style="width: 100%;" data-i18n="save_changes">Save Changes</button>
+            <div style="display: flex; gap: 12px; width: 100%;">
+              <button type="button" id="sync-atlassian-btn" class="btn btn-secondary" style="flex: 1; background-color: var(--accent-blue); color: white;">
+                <i class="fa-solid fa-rotate"></i> <span data-i18n="sync_now">Sync Now</span>
+              </button>
+              <button type="button" id="clear-config-btn" class="btn btn-secondary" style="flex: 1; color: var(--status-error);" data-i18n="clear_config">Clear Config</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <button id="theme-toggle-btn" class="theme-toggle-fixed" aria-label="Toggle Dark Mode">
+    <i class="fa-solid fa-moon"></i>
+  </button>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="translations.js"></script>
+  <script src="assets.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
