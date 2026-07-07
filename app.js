@@ -841,28 +841,36 @@ function setupEventListeners() {
     // Helper to clean IDs
     const clean = (id) => id ? id.replace(/[^a-z0-9-]/gi, "").trim() : "";
 
-    // 1. Path format: /assets/objects/[WORKSPACE_ID] or /assets/[CLOUD_ID]/[WORKSPACE_ID]
+    // 1. Path format variants: 
+    // - /assets/[CLOUD_ID]/[WORKSPACE_ID]
+    // - /assets/objects/[WORKSPACE_ID]
+    // - /assets/object-schema/[WORKSPACE_ID]
     const pathMatch = url.match(/\/assets\/([a-z0-9-]+)\/([a-z0-9-]+)/i);
+    const objectSchemaMatch = url.match(/\/assets\/object-schema\/([a-z0-9-]+)/i);
     const simplePathMatch = url.match(/\/assets\/([a-z0-9-]+)/i);
     
     if (pathMatch) {
       document.getElementById("api-cloud-id").value = clean(pathMatch[1]);
       document.getElementById("api-workspace-id").value = clean(pathMatch[2]);
+    } else if (objectSchemaMatch) {
+      document.getElementById("api-workspace-id").value = clean(objectSchemaMatch[1]);
     } else if (simplePathMatch) {
       document.getElementById("api-workspace-id").value = clean(simplePathMatch[1]);
     }
 
-    // 2. Query Parameters (Overwrites path if found, as they are usually more specific)
+    // 2. Query Parameters
     const urlObj = new URL(url.includes("://") ? url : "https://" + url);
     const params = urlObj.searchParams;
     if (params.get("workspaceId")) document.getElementById("api-workspace-id").value = clean(params.get("workspaceId"));
     if (params.get("cloudId")) document.getElementById("api-cloud-id").value = clean(params.get("cloudId"));
 
-    // 3. Subdomain as fallback for Cloud ID
+    // 3. Subdomain as Cloud ID (e.g., smm-sandbox)
+    // We filter out common Atlassian subdomains that AREN'T cloud IDs
     const domainMatch = url.match(/https?:\/\/([a-z0-9-]+)\.atlassian\.net/i);
-    if (domainMatch && !["jira", "admin", "id"].includes(domainMatch[1].toLowerCase())) {
-       if (domainMatch[1].length > 10 && !document.getElementById("api-cloud-id").value) { 
-         document.getElementById("api-cloud-id").value = clean(domainMatch[1]);
+    if (domainMatch) {
+       const sub = domainMatch[1].toLowerCase();
+       if (!["jira", "admin", "id", "object-schema", "assets"].includes(sub)) {
+         document.getElementById("api-cloud-id").value = clean(sub);
        }
     }
     
