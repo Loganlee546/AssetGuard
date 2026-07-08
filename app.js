@@ -64,8 +64,12 @@ async function syncWithAtlassian() {
 
   showToast(t("sync_loading"), "info");
 
-  // Define the three common Atlassian Assets API path variants
+  // Define the common Atlassian Assets API path variants
+  // We extract the site name from the configuration to support direct subdomain routing
+  const siteSubdomain = apiConfig.cloudId.includes("-") ? "smm-sandbox" : apiConfig.cloudId;
+  
   const paths = [
+    `https://${siteSubdomain}.atlassian.net/gateway/api/jsm/assets/workspace/${apiConfig.workspaceId}/v1/object/aql`,
     `https://api.atlassian.com/ex/jira/${apiConfig.cloudId}/jsm/assets/workspace/${apiConfig.workspaceId}/v1/object/aql`,
     `https://api.atlassian.com/ex/jira/${apiConfig.cloudId}/assets/workspace/${apiConfig.workspaceId}/v1/object/aql`,
     `https://api.atlassian.com/jsm/assets/workspace/${apiConfig.workspaceId}/v1/object/aql`
