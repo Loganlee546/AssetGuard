@@ -937,3 +937,118 @@ main {
   color: #B6C2CF;
 }
 
+/* Atlassian Connection Status Dashboard Styling */
+.connection-status-card {
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.connection-status-card .status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.connection-status-card .status-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.connection-status-card .status-details {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* Status Badges */
+.connection-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-unconfigured {
+  background-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+.status-ready {
+  background-color: var(--accent-blue-subtle);
+  color: var(--accent-blue);
+}
+
+.status-connected {
+  background-color: var(--status-open-bg);
+  color: var(--status-open);
+}
+
+.status-error {
+  background-color: var(--status-error-bg);
+  color: var(--status-error);
+}
+
+.status-syncing {
+  background-color: #FFF0B3;
+  color: #8F6B00;
+}
+
+/* Card Glows based on state */
+.connection-status-card.connected {
+  border-left: 4px solid var(--status-open);
+  box-shadow: 0 0 10px rgba(54, 179, 126, 0.15);
+}
+
+.connection-status-card.error {
+  border-left: 4px solid var(--status-error);
+  box-shadow: 0 0 10px rgba(255, 86, 48, 0.15);
+}
+
+.connection-status-card.syncing {
+  border-left: 4px solid #FFAB00;
+  animation: pulse-border 1.5s infinite alternate;
+}
+
+@keyframes pulse-border {
+  0% { border-color: #FFC400; box-shadow: 0 0 5px rgba(255, 171, 0, 0.2); }
+  100% { border-color: #FF7400; box-shadow: 0 0 15px rgba(255, 171, 0, 0.5); }
+}
+
+/* Scrollable error block */
+.error-details-block {
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 86, 48, 0.2);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--status-error);
+  max-height: 80px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+/* Dark mode overrides for error-details-block */
+[data-theme="dark"] .error-details-block {
+  background-color: #1c100e;
+  border-color: rgba(248, 113, 104, 0.3);
+  color: #F87168;
+}
+
+

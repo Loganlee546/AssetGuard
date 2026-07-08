@@ -54,26 +54,199 @@ document.addEventListener("DOMContentLoaded", () => {
   applyTranslations(currentLanguage);
   setupEventListeners();
 });
+// Atlassian Connection Status Dashboard and Auto-Resolution Helpers
+function isValidUUID(str) {
+  if (!str) return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str.trim());
+}
+
+function updateConnectionUI(status, detailsMsg = "") {
+  const card = document.getElementById("connection-status-card");
+  const badge = document.getElementById("connection-status-badge");
+  const details = document.getElementById("connection-status-details");
+
+  if (!card || !badge || !details) return;
+
+  // Clear previous state classes
+  card.className = "connection-status-card " + status;
+  badge.className = "connection-badge status-" + status;
+
+  // Set translation/text
+  badge.textContent = t("conn_status_" + status);
+
+  // Persistence of connection state
+  if (status !== "syncing") {
+    localStorage.setItem("assetGuard_last_sync_status", status);
+    if (status === "connected") {
+      const timeStr = new Date().toLocaleString();
+      localStorage.setItem("assetGuard_last_sync_time", timeStr);
+      localStorage.setItem("assetGuard_last_sync_error", "");
+    } else if (status === "error") {
+      localStorage.setItem("assetGuard_last_sync_error", detailsMsg);
+    }
+  }
+
+  // Set details content
+  if (status === "unconfigured") {
+    details.innerHTML = `<span>${t("conn_status_details_unconfigured")}</span>`;
+  } else if (status === "ready") {
+    details.innerHTML = `<span>${t("conn_status_details_ready")}</span>`;
+  } else if (status === "syncing") {
+    details.innerHTML = `<span style="display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-spinner fa-spin"></i> ${detailsMsg || t("sync_loading")}</span>`;
+  } else if (status === "connected") {
+    const count = localStorage.getItem("assetGuard_last_sync_count") || "0";
+    const time = localStorage.getItem("assetGuard_last_sync_time") || new Date().toLocaleString();
+    details.innerHTML = `<span>${t("conn_status_details_connected", { time, count })}</span>`;
+  } else if (status === "error") {
+    details.innerHTML = `
+      <span>${t("conn_status_details_error")}</span>
+      <div class="error-details-block">${escapeHTML(detailsMsg)}</div>
+    `;
+  }
+}
+
+async function resolveCloudId(subdomain) {
+  try {
+    const res = await fetch(`https://${subdomain}.atlassian.net/metadata/properties/id`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.id) {
+        return data.id;
+      }
+    }
+  } catch (e) {
+    console.warn("Could not resolve Cloud ID from metadata:", e);
+  }
+  return null;
+}
+
+async function resolveWorkspaceId(cloudId, originalSubdomain) {
+  const auth = btoa(`${apiConfig.email}:${apiConfig.token}`);
+  const headers = {
+    "Authorization": `Basic ${auth}`,
+    "Accept": "application/json"
+  };
+
+  const urls = [];
+  if (originalSubdomain) {
+    urls.push(`https://${originalSubdomain}.atlassian.net/rest/servicedeskapi/assets/workspace`);
+  }
+  if (cloudId && cloudId.includes("-")) {
+    urls.push(`https://api.atlassian.com/ex/jira/${cloudId}/rest/servicedeskapi/assets/workspace`);
+  }
+  
+  // Backups
+  if (originalSubdomain) {
+    urls.push(`https://${originalSubdomain}.atlassian.net/rest/servicedeskapi/insight/workspace`);
+  }
+  if (cloudId && cloudId.includes("-")) {
+    urls.push(`https://api.atlassian.com/ex/jira/${cloudId}/rest/servicedeskapi/insight/workspace`);
+  }
+
+  let resolvedId = null;
+  let lastError = null;
+
+  for (const url of urls) {
+    try {
+      console.log("Attempting to resolve Workspace ID from:", url);
+      const res = await fetch(url, { method: "GET", headers });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.values && data.values.length > 0 && data.values[0].workspaceId) {
+          resolvedId = data.values[0].workspaceId;
+          break;
+        }
+      } else {
+        const txt = await res.text();
+        lastError = new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
+      }
+    } catch (e) {
+      lastError = e;
+    }
+  }
+
+  if (resolvedId) {
+    return resolvedId;
+  } else {
+    throw lastError || new Error("Workspace ID could not be found in response.");
+  }
+}
+
 // Atlassian API Sync Logic
 async function syncWithAtlassian() {
   if (!apiConfig.cloudId || !apiConfig.workspaceId || !apiConfig.email || !apiConfig.token) {
     showToast(t("notif_sync_error").replace("{error}", "Missing API Config (Cloud ID, Workspace ID, Email, or Token)"), "error");
     openModal("settings-modal");
+    updateConnectionUI("error", "Missing configuration fields.");
     return;
   }
 
+  updateConnectionUI("syncing", t("sync_loading"));
   showToast(t("sync_loading"), "info");
 
-  // Define the common Atlassian Assets API path variants
-  // We extract the site name from the configuration to support direct subdomain routing
-  const siteSubdomain = apiConfig.cloudId.includes("-") ? "smm-sandbox" : apiConfig.cloudId;
+  // Keep track of our actual runtime Cloud ID and Workspace ID
+  let targetCloudId = apiConfig.cloudId;
+  let targetWorkspaceId = apiConfig.workspaceId;
+
+  const isSubdomain = !targetCloudId.includes("-");
+
+  // Stage 1: Auto-resolve Cloud ID if it is a subdomain
+  if (isSubdomain) {
+    console.log("Cloud ID is a subdomain. Attempting to resolve to UUID...");
+    updateConnectionUI("syncing", "Resolving Cloud ID...");
+    const resolvedCloud = await resolveCloudId(targetCloudId);
+    if (resolvedCloud) {
+      console.log("Resolved Cloud ID UUID:", resolvedCloud);
+      targetCloudId = resolvedCloud;
+      // Also update stored config so we don't have to resolve next time
+      apiConfig.cloudId = resolvedCloud;
+      const cloudInput = document.getElementById("api-cloud-id");
+      if (cloudInput) cloudInput.value = resolvedCloud;
+      saveState();
+    }
+  }
+
+  // Stage 2: Auto-resolve Workspace ID if it is a schema ID (not a UUID)
+  if (!isValidUUID(targetWorkspaceId)) {
+    console.log(`Workspace ID '${targetWorkspaceId}' is a Schema ID. Attempting auto-resolution...`);
+    updateConnectionUI("syncing", "Resolving Workspace ID...");
+    try {
+      const originalSubdomain = !apiConfig.cloudId.includes("-") ? apiConfig.cloudId : (isSubdomain ? apiConfig.cloudId : null);
+      const resolvedWorkspace = await resolveWorkspaceId(targetCloudId, originalSubdomain);
+      if (resolvedWorkspace) {
+        console.log("Resolved Workspace ID UUID:", resolvedWorkspace);
+        targetWorkspaceId = resolvedWorkspace;
+        // Save back to state
+        apiConfig.workspaceId = resolvedWorkspace;
+        const workspaceInput = document.getElementById("api-workspace-id");
+        if (workspaceInput) workspaceInput.value = resolvedWorkspace;
+        saveState();
+        showToast("Workspace ID resolved automatically!", "success");
+      }
+    } catch (err) {
+      console.error("Workspace ID resolution failed:", err);
+      const errMsg = `Resolution failed: ${err.message}`;
+      updateConnectionUI("error", errMsg);
+      showToast(t("notif_sync_error").replace("{error}", errMsg), "error");
+      return;
+    }
+  }
+
+  updateConnectionUI("syncing", "Fetching Assets from Atlassian...");
+
+  // Define the common Atlassian Assets API path variants using final UUIDs
+  const paths = [];
+  const originalSubdomainText = !apiConfig.cloudId.includes("-") ? apiConfig.cloudId : null;
   
-  const paths = [
-    `https://${siteSubdomain}.atlassian.net/gateway/api/jsm/assets/workspace/${apiConfig.workspaceId}/v1/object/aql`,
-    `https://api.atlassian.com/ex/jira/${apiConfig.cloudId}/jsm/assets/workspace/${apiConfig.workspaceId}/v1/object/aql`,
-    `https://api.atlassian.com/ex/jira/${apiConfig.cloudId}/assets/workspace/${apiConfig.workspaceId}/v1/object/aql`,
-    `https://api.atlassian.com/jsm/assets/workspace/${apiConfig.workspaceId}/v1/object/aql`
-  ];
+  if (originalSubdomainText) {
+    paths.push(`https://${originalSubdomainText}.atlassian.net/gateway/api/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`);
+  }
+  if (targetCloudId.includes("-")) {
+    paths.push(`https://api.atlassian.com/ex/jira/${targetCloudId}/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`);
+    paths.push(`https://api.atlassian.com/ex/jira/${targetCloudId}/assets/workspace/${targetWorkspaceId}/v1/object/aql`);
+  }
+  paths.push(`https://api.atlassian.com/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`);
 
   let success = false;
   let lastError = null;
@@ -129,13 +302,17 @@ async function syncWithAtlassian() {
       }
     });
 
+    localStorage.setItem("assetGuard_last_sync_count", remoteAssets.length);
     saveState();
     updateMetrics();
     renderAssetList();
+    updateConnectionUI("connected");
     showToast(t("notif_sync_success").replace("{count}", remoteAssets.length), "success");
   } else {
     console.error("All sync paths failed. Last error:", lastError);
-    showToast(t("notif_sync_error").replace("{error}", lastError ? lastError.message : "404 Not Found"), "error");
+    const errMsg = lastError ? lastError.message : "404 Not Found";
+    updateConnectionUI("error", errMsg);
+    showToast(t("notif_sync_error").replace("{error}", errMsg), "error");
   }
 }
 
@@ -995,12 +1172,21 @@ function setupEventListeners() {
   on("settings-form", "submit", (e) => {
     e.preventDefault();
     apiConfig = {
-      cloudId: document.getElementById("api-cloud-id").value,
-      workspaceId: document.getElementById("api-workspace-id").value,
-      email: document.getElementById("api-email").value,
-      token: document.getElementById("api-token").value
+      cloudId: document.getElementById("api-cloud-id").value.trim(),
+      workspaceId: document.getElementById("api-workspace-id").value.trim(),
+      email: document.getElementById("api-email").value.trim(),
+      token: document.getElementById("api-token").value.trim()
     };
     saveState();
+    
+    // Reset connection status upon saving new settings
+    if (!apiConfig.cloudId || !apiConfig.workspaceId || !apiConfig.email || !apiConfig.token) {
+      localStorage.setItem("assetGuard_last_sync_status", "unconfigured");
+    } else {
+      localStorage.setItem("assetGuard_last_sync_status", "ready");
+      localStorage.setItem("assetGuard_last_sync_error", "");
+    }
+    
     closeModal("settings-modal");
     showToast(t("notif_config_saved"), "success");
   });
@@ -1009,11 +1195,14 @@ function setupEventListeners() {
     if (confirm(t("confirm_clear_all"))) { 
       apiConfig = { cloudId: "", workspaceId: "", email: "", token: "" };
       saveState();
+      localStorage.setItem("assetGuard_last_sync_status", "unconfigured");
+      localStorage.setItem("assetGuard_last_sync_error", "");
       // Force UI update
       document.getElementById("api-cloud-id").value = "";
       document.getElementById("api-workspace-id").value = "";
       document.getElementById("api-email").value = "";
       document.getElementById("api-token").value = "";
+      updateConnectionUI("unconfigured");
       showToast(t("notif_config_cleared"), "info");
     }
   });
@@ -1460,6 +1649,15 @@ function openModal(modalId) {
       document.getElementById("api-workspace-id").value = apiConfig.workspaceId || "";
       document.getElementById("api-email").value = apiConfig.email || "";
       document.getElementById("api-token").value = apiConfig.token || "";
+      
+      // Determine initial status of connection dashboard
+      if (!apiConfig.cloudId || !apiConfig.workspaceId || !apiConfig.email || !apiConfig.token) {
+        updateConnectionUI("unconfigured");
+      } else {
+        const lastStatus = localStorage.getItem("assetGuard_last_sync_status") || "ready";
+        const lastError = localStorage.getItem("assetGuard_last_sync_error") || "";
+        updateConnectionUI(lastStatus, lastError);
+      }
     }
   }
 }

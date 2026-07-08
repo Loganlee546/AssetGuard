@@ -400,6 +400,17 @@
           <button id="close-help-btn" class="btn btn-secondary btn-sm" style="width: 100%; margin-top: 8px;" data-i18n="btn_got_it">Got it!</button>
         </div>
 
+        <!-- Connection Status Dashboard -->
+        <div id="connection-status-card" class="connection-status-card unconfigured">
+          <div class="status-header">
+            <span class="status-title" data-i18n="conn_status_title">Connection Status</span>
+            <span id="connection-status-badge" class="connection-badge status-unconfigured" data-i18n="conn_status_unconfigured">Unconfigured</span>
+          </div>
+          <div id="connection-status-details" class="status-details">
+            <span data-i18n="conn_status_details_unconfigured">Please complete your connection settings below.</span>
+          </div>
+        </div>
+
         <form id="settings-form">
           <div class="form-group">
             <label data-i18n="cloud_id">Atlassian Cloud ID</label>
