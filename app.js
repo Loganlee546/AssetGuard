@@ -892,47 +892,69 @@ function setupEventListeners() {
     const url = (e.clipboardData || window.clipboardData).getData('text').trim();
     if (!url || !url.includes("atlassian.net")) return; 
     
-    // Regex to extract Cloud ID and Workspace ID from typical Atlassian Assets URL
-    // Format: https://your-site.atlassian.net/jira/servicedesk/assets/[CLOUD_ID]/[WORKSPACE_ID]
-    // Or: https://[CLOUD_ID].atlassian.net/...
-    
     // Helper to clean IDs
     const clean = (id) => id ? id.replace(/[^a-z0-9-]/gi, "").trim() : "";
 
-    // 1. Path format variants: 
-    // - /assets/[CLOUD_ID]/[WORKSPACE_ID]
-    // - /assets/objects/[WORKSPACE_ID]
-    // - /assets/object-schema/[WORKSPACE_ID]
-    const pathMatch = url.match(/\/assets\/([a-z0-9-]+)\/([a-z0-9-]+)/i);
-    const objectSchemaMatch = url.match(/\/assets\/object-schema\/([a-z0-9-]+)/i);
-    const simplePathMatch = url.match(/\/assets\/([a-z0-9-]+)/i);
+    // 1. Try to find Workspace ID (Object Schema ID) using multiple pattern fallbacks
+    let workspaceId = "";
     
-    if (pathMatch) {
-      document.getElementById("api-cloud-id").value = clean(pathMatch[1]);
-      document.getElementById("api-workspace-id").value = clean(pathMatch[2]);
-    } else if (objectSchemaMatch) {
-      document.getElementById("api-workspace-id").value = clean(objectSchemaMatch[1]);
-    } else if (simplePathMatch) {
-      document.getElementById("api-workspace-id").value = clean(simplePathMatch[1]);
+    // Pattern A: /object-schema/[ID]
+    const schemaMatch = url.match(/\/object-schema\/([a-z0-9-]+)/i);
+    // Pattern B: /objects/[ID] or /assets/[ID]
+    const objectsMatch = url.match(/\/objects?\/([a-z0-9-]+)/i);
+    // Pattern C: ?workspaceId=[ID] or &workspaceId=[ID]
+    const queryMatch = url.match(/[?&]workspaceId=([a-z0-9-]+)/i);
+    // Pattern D: /assets/([a-z0-9-]+) (simple folder match)
+    const simpleMatch = url.match(/\/assets\/([a-z0-9-]+)/i);
+
+    if (schemaMatch) {
+      workspaceId = clean(schemaMatch[1]);
+    } else if (objectsMatch) {
+      workspaceId = clean(objectsMatch[1]);
+    } else if (queryMatch) {
+      workspaceId = clean(queryMatch[1]);
+    } else if (simpleMatch) {
+      const parsed = clean(simpleMatch[1]);
+      // Avoid matching common folders as IDs
+      if (!["object-schema", "objects", "object", "schema"].includes(parsed)) {
+        workspaceId = parsed;
+      }
     }
 
-    // 2. Query Parameters
-    const urlObj = new URL(url.includes("://") ? url : "https://" + url);
-    const params = urlObj.searchParams;
-    if (params.get("workspaceId")) document.getElementById("api-workspace-id").value = clean(params.get("workspaceId"));
-    if (params.get("cloudId")) document.getElementById("api-cloud-id").value = clean(params.get("cloudId"));
+    // Write Workspace ID to input
+    if (workspaceId) {
+      document.getElementById("api-workspace-id").value = workspaceId;
+      apiConfig.workspaceId = workspaceId;
+    }
 
-    // 3. Subdomain as Cloud ID (e.g., smm-sandbox)
-    // We filter out common Atlassian subdomains that AREN'T cloud IDs
+    // 2. Try to find Cloud ID / Subdomain
     const domainMatch = url.match(/https?:\/\/([a-z0-9-]+)\.atlassian\.net/i);
     if (domainMatch) {
        const sub = domainMatch[1].toLowerCase();
-       if (!["jira", "admin", "id", "object-schema", "assets"].includes(sub)) {
+       if (!["jira", "admin", "id", "assets"].includes(sub)) {
          document.getElementById("api-cloud-id").value = clean(sub);
+         apiConfig.cloudId = sub;
+         
+         // Background resolver to get the real long Cloud ID
+         showToast("Resolving Atlassian Cloud ID...", "info");
+         fetch(`https://${sub}.atlassian.net/metadata/properties/id`)
+           .then(res => res.json())
+           .then(meta => {
+             if (meta && meta.id) {
+               document.getElementById("api-cloud-id").value = meta.id;
+               apiConfig.cloudId = meta.id;
+               saveState();
+               showToast("Cloud ID resolved successfully!", "success");
+             }
+           })
+           .catch(err => {
+             console.log("Background ID resolver failed:", err);
+             showToast("Workspace ID loaded. Subdomain saved as fallback.", "info");
+           });
        }
     }
     
-    showToast(t("notif_config_saved"), "success");
+    saveState();
   });
 
   on("people-directory-trigger-btn", "click", () => {
