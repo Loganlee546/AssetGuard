@@ -1,5 +1,31 @@
 window.itAssetSeeds = [
   {
+    id: "smm2379",
+    name: "Lenovo ThinkPad X1 Carbon",
+    category: "Laptop",
+    status: "Open",
+    owner: "",
+    location: "Main HQ",
+    condition: "Good",
+    serialNumber: "PF-3YJEKR",
+    acquisitionDate: "2026-06-01",
+    specs: { cpu: "Intel i7", ram: "16GB", storage: "512GB SSD", os: "Windows 11 Pro" },
+    history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
+  },
+  {
+    id: "smm2380",
+    name: "Lenovo ThinkPad T14",
+    category: "Laptop",
+    status: "Owned",
+    owner: "Alex Rivera",
+    location: "IT Storage",
+    condition: "New",
+    serialNumber: "PF-4ZKLMN",
+    acquisitionDate: "2026-06-15",
+    specs: { cpu: "Intel i5", ram: "16GB", storage: "256GB SSD", os: "Windows 11 Pro" },
+    history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
+  },
+  {
     id: "LAP-TEST-101",
     name: "MacBook Pro M3",
     category: "Laptop",
@@ -75,6 +101,58 @@ window.itAssetSeeds = [
     serialNumber: "SN-FW-106",
     acquisitionDate: "2026-03-05",
     specs: { cpu: "Intel i5", ram: "16GB", storage: "512GB SSD", os: "Linux Mint" },
+    history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
+  },
+  {
+    id: "PRJ-101",
+    name: "Epson Pro EX11000",
+    category: "Projector",
+    status: "Open",
+    owner: "",
+    location: "Conference Room A",
+    condition: "New",
+    serialNumber: "SN-EPSON-201",
+    acquisitionDate: "2026-06-01",
+    specs: { resolution: "4K UHD", brightness: "4600 lumens", inputs: "HDMI, USB-C" },
+    history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
+  },
+  {
+    id: "PRT-301",
+    name: "HP LaserJet Pro M404dn",
+    category: "Printer",
+    status: "Open",
+    owner: "",
+    location: "Reception desk",
+    condition: "Good",
+    serialNumber: "SN-HP-301",
+    acquisitionDate: "2026-05-10",
+    specs: { technology: "Laser", speed: "40 ppm", type: "Monochrome" },
+    history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
+  },
+  {
+    id: "MIX-401",
+    name: "Yamaha MG12XU 12-Input",
+    category: "Mixing Console",
+    status: "Owned",
+    owner: "Alex Rivera",
+    location: "Auditorium",
+    condition: "Excellent",
+    serialNumber: "SN-YAMAHA-401",
+    acquisitionDate: "2026-04-15",
+    specs: { channels: "12", effects: "SPX suite", connectivity: "USB" },
+    history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
+  },
+  {
+    id: "CART-501",
+    name: "Luxor 3-Shelf Utility Cart",
+    category: "AV Cart",
+    status: "Open",
+    owner: "",
+    location: "Media Center",
+    condition: "Fair",
+    serialNumber: "SN-LUXOR-501",
+    acquisitionDate: "2026-02-28",
+    specs: { weight_capacity: "400 lbs", shelves: "3", material: "Polyethylene" },
     history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
   }
 ];

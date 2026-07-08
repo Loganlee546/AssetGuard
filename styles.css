@@ -911,3 +911,29 @@ main {
   background-color: var(--border-color);
 }
 
+/* Category Filter Hub Dropdown Custom Styling */
+#more-categories-select {
+  border: 1px solid var(--border-color) !important;
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+  font-family: inherit;
+}
+
+#more-categories-select:hover {
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 0 0 2px var(--accent-blue-subtle);
+}
+
+#more-categories-select:focus {
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 0 0 3px var(--accent-blue-subtle);
+}
+
+/* Dark mode styling for dropdown option texts */
+[data-theme="dark"] #more-categories-select option {
+  background-color: #22272B;
+  color: #B6C2CF;
+}
+

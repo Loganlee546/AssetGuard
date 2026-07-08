@@ -292,13 +292,54 @@ function renderAssetList() {
     let statusClass = asset.status.toLowerCase().replace(" ", "-");
     let statusKey = `status_${asset.status.toLowerCase().replace(" ", "_")}`;
 
-    // Category Icons
+    // Category Icons Map
     let categoryIcon = "fa-laptop";
-    const cat = asset.category.toLowerCase();
-    if (cat === "tablet") categoryIcon = "fa-tablet-screen-button";
-    if (cat === "phone") categoryIcon = "fa-mobile-screen-button";
-    if (cat === "monitor") categoryIcon = "fa-desktop";
-    if (cat === "other") categoryIcon = "fa-box-archive";
+    const cat = asset.category.toLowerCase().replace(/[-\s]+/g, "_");
+    
+    const iconMap = {
+      laptop: "fa-laptop",
+      tablet: "fa-tablet-screen-button",
+      phone: "fa-mobile-screen-button",
+      monitor: "fa-desktop",
+      computer: "fa-desktop",
+      projector: "fa-video",
+      digital_signage: "fa-tv",
+      printer: "fa-print",
+      charger: "fa-plug",
+      av_cart: "fa-truck-ramp-box",
+      mixing_console: "fa-sliders",
+      microphone: "fa-microphone",
+      receiver: "fa-radio",
+      laptop_storage_cart: "fa-cart-shopping",
+      scanner: "fa-print",
+      video_conferencing_kit: "fa-chalkboard-user",
+      jamboard: "fa-chalkboard",
+      speakermic: "fa-volume-high",
+      drive_external: "fa-hard-drive",
+      camera: "fa-camera",
+      projection_screen: "fa-display",
+      sensor: "fa-microchip",
+      speaker: "fa-volume-up",
+      mobile_hotspot: "fa-wifi",
+      transducer: "fa-wave-square",
+      ups: "fa-battery-three-quarters",
+      time_clock: "fa-clock",
+      pos_devices: "fa-credit-card",
+      security_key: "fa-key",
+      operating_system: "fa-window-maximize",
+      software: "fa-floppy-disk",
+      other: "fa-box-archive"
+    };
+
+    if (iconMap[cat]) {
+      categoryIcon = iconMap[cat];
+    } else if (cat.includes("drive")) {
+      categoryIcon = "fa-hard-drive";
+    } else if (cat.includes("projection")) {
+      categoryIcon = "fa-display";
+    } else if (cat.includes("hotspot")) {
+      categoryIcon = "fa-wifi";
+    }
 
     card.innerHTML = `
       <div class="asset-card-header">
@@ -309,7 +350,7 @@ function renderAssetList() {
       <div class="asset-meta">
         <div class="meta-item">
           <i class="fa-solid ${categoryIcon}"></i>
-          <span>${t(asset.category.toLowerCase())}</span>
+          <span>${t(asset.category.toLowerCase().replace(/[-\s]+/g, "_"))}</span>
         </div>
         <div class="meta-item">
           <i class="fa-solid fa-user"></i>
@@ -441,7 +482,7 @@ function bulkReturnAssets(userName) {
 
 // Open Detail/Action Modal
 function openDetailsModal(assetId) {
-  const asset = assets.find(a => a.id === assetId);
+  const asset = assets.find(a => (a.id || "").toLowerCase() === assetId.toLowerCase());
   if (!asset) {
     showToast(t("notif_not_found"), "error");
     return;
@@ -452,7 +493,7 @@ function openDetailsModal(assetId) {
 
   // Overview Tab Fields
   document.getElementById("view-name").textContent = asset.name;
-  document.getElementById("view-category").textContent = t(asset.category.toLowerCase());
+  document.getElementById("view-category").textContent = t(asset.category.toLowerCase().replace(/[-\s]+/g, "_"));
   document.getElementById("view-serial").textContent = asset.serialNumber || "--";
   document.getElementById("view-location").textContent = asset.location || "--";
   document.getElementById("view-condition").textContent = asset.condition;
@@ -775,9 +816,26 @@ function setupEventListeners() {
     if (e.target.classList.contains("tab-btn")) {
       document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
       e.target.classList.add("active");
+      
+      // Reset the "More Categories..." select box
+      const moreSelect = document.getElementById("more-categories-select");
+      if (moreSelect) moreSelect.value = "";
+      
       activeCategory = e.target.getAttribute("data-category");
       renderAssetList();
     }
+  });
+
+  // More Categories dropdown selection
+  on("more-categories-select", "change", (e) => {
+    const selectedCategory = e.target.value;
+    if (!selectedCategory) return; // Ignore placeholder option selection
+    
+    // Deselect all quick chips
+    document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+    
+    activeCategory = selectedCategory;
+    renderAssetList();
   });
 
   // Status filters click
@@ -805,7 +863,7 @@ function setupEventListeners() {
   });
 
   // Search input change
-  on("search-bar", "input", (e) => {
+  on("asset-search-input", "input", (e) => {
     searchQuery = e.target.value;
     renderAssetList();
   });
@@ -1002,7 +1060,41 @@ function setupEventListeners() {
 
   // People Search Filter
   on("people-search-input", "input", renderPeopleList);
+
+  // Main Header Search Go Button Logic
+  on("main-search-go-btn", "click", () => {
+    const inputVal = document.getElementById("asset-search-input").value.trim();
+    if (!inputVal) return;
+
+    // Normalize input (e.g. M2379 -> smm2379)
+    let normalizedId = inputVal.toLowerCase();
+    if (normalizedId.startsWith("m") && normalizedId.length > 2) {
+      normalizedId = "smm" + normalizedId.substring(1);
+    }
+
+    const existing = assets.find(a => a.id === normalizedId || a.serialNumber === normalizedId || a.id === inputVal);
+    if (existing) {
+      openDetailsModal(existing.id);
+      document.getElementById("asset-search-input").value = ""; // Clean input on success
+    } else {
+      showToast(t("notif_not_found"), "error");
+    }
+  });
   
+  // Theme Toggle Logic
+  on("theme-toggle-btn", "click", () => {
+    const themeBtn = document.getElementById("theme-toggle-btn");
+    if (document.body.getAttribute("data-theme") === "dark") {
+      document.body.removeAttribute("data-theme");
+      localStorage.setItem("assetGuard_theme", "light");
+      themeBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
+    } else {
+      document.body.setAttribute("data-theme", "dark");
+      localStorage.setItem("assetGuard_theme", "dark");
+      themeBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+    }
+  });
+
   // Global History Filters
   on("global-history-category-filter", "change", renderGlobalHistory);
   on("global-history-year-filter", "change", renderGlobalHistory);
@@ -1176,6 +1268,42 @@ function setupEventListeners() {
     closeModal("add-asset-modal");
     showToast(t("notif_saved"), "success");
   });
+
+  // Manual Scan Entry Logic
+  on("manual-scan-btn", "click", () => {
+    const manualInput = document.getElementById("manual-scan-input").value.trim();
+    if (!manualInput) return;
+    
+    // Normalize manual input (e.g. M2379 -> smm2379)
+    let normalizedId = manualInput.toLowerCase();
+    if (normalizedId.startsWith("m") && normalizedId.length > 2) {
+      normalizedId = "smm" + normalizedId.substring(1);
+    }
+    
+    const existing = assets.find(a => {
+      const assetIdLower = (a.id || "").toLowerCase();
+      const assetSerialLower = (a.serialNumber || "").toLowerCase();
+      return assetIdLower === normalizedId || 
+             assetSerialLower === normalizedId || 
+             assetIdLower === manualInput.toLowerCase();
+    });
+    
+    // Close scanner first
+    stopCameraScanner();
+    closeModal("scanner-modal");
+    document.getElementById("manual-scan-input").value = "";
+
+    if (existing) {
+      // If the laptop exists, open the details modal directly!
+      showToast(t("notif_scan_success", { id: normalizedId }), "success");
+      openDetailsModal(existing.id);
+    } else {
+      // Only open the Add screen if the laptop is new
+      showToast(t("notif_new_asset_scanned"), "info");
+      openModal("add-asset-modal");
+      document.getElementById("add-id").value = normalizedId;
+    }
+  });
 }
 
 // Start Camera Stream QR scan
@@ -1198,17 +1326,42 @@ function startCameraScanner() {
   }
 
   html5QrScanner = new Html5Qrcode("qr-reader");
-  const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+  const config = { fps: 15, qrbox: { width: 300, height: 300 } };
 
   html5QrScanner.start(
     { facingMode: "environment" }, 
     config,
     (decodedText) => {
       playBeep();
-      showToast(t("notif_scan_success", { id: decodedText }), "success");
       stopCameraScanner();
       closeModal("scanner-modal");
-      openDetailsModal(decodedText);
+
+      // Normalize scanned text (e.g. M2379 -> smm2379)
+      let normalizedId = decodedText.trim().toLowerCase();
+      if (normalizedId.startsWith("m") && normalizedId.length > 2) {
+        normalizedId = "smm" + normalizedId.substring(1);
+      }
+
+      const existing = assets.find(a => {
+        const assetIdLower = (a.id || "").toLowerCase();
+        const assetSerialLower = (a.serialNumber || "").toLowerCase();
+        return assetIdLower === normalizedId || 
+               assetSerialLower === normalizedId || 
+               assetIdLower === decodedText.toLowerCase();
+      });
+      if (existing) {
+        showToast(t("notif_scan_success", { id: normalizedId }), "success");
+        openDetailsModal(existing.id);
+      } else {
+        // New asset found! Open the Add Modal
+        showToast(t("notif_new_asset_scanned"), "info");
+        openModal("add-modal");
+        document.getElementById("add-id").value = normalizedId;
+        // Optionally pre-fill serial if it looks like one
+        if (decodedText.length > 5) {
+          document.getElementById("add-serial").value = decodedText;
+        }
+      }
     },
     (errorMessage) => {
     }
@@ -1223,9 +1376,13 @@ function startCameraScanner() {
     isScannerStarting = false;
     console.error("Camera startup failure", err);
     document.getElementById("scanner-output-status").textContent = "Camera error: Camera not found or permission denied.";
-    setTimeout(() => closeModal("scanner-modal"), 2000); // Close after 2 seconds on fail
+    setTimeout(() => {
+      closeModal("scanner-modal");
+      isScannerStarting = false; // Reset flag so they can try again
+    }, 3000); 
   });
 }
+
 
 // Stop Camera Stream
 function stopCameraScanner() {
@@ -1271,7 +1428,7 @@ function closeModal(modalId) {
   document.getElementById(modalId).classList.remove("active");
 }
 
-// Theme Toggle Logic
+// Theme Toggle Initial State Loader
 document.addEventListener("DOMContentLoaded", () => {
   const themeBtn = document.getElementById("theme-toggle-btn");
   if (!themeBtn) return;
@@ -1280,17 +1437,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (currentTheme === "dark") {
     document.body.setAttribute("data-theme", "dark");
     themeBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+  } else {
+    document.body.removeAttribute("data-theme");
+    themeBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
   }
-
-  themeBtn.addEventListener("click", () => {
-    if (document.body.getAttribute("data-theme") === "dark") {
-      document.body.removeAttribute("data-theme");
-      localStorage.setItem("assetGuard_theme", "light");
-      themeBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
-    } else {
-      document.body.setAttribute("data-theme", "dark");
-      localStorage.setItem("assetGuard_theme", "dark");
-      themeBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
-    }
-  });
 });
