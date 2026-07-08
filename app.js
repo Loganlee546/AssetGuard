@@ -64,46 +64,60 @@ async function syncWithAtlassian() {
 
   showToast(t("sync_loading"), "info");
 
-  try {
-    // Atlassian AQL Endpoint with Cache Buster
-    const cacheBuster = Date.now();
-    const url = `https://api.atlassian.com/ex/jira/${apiConfig.cloudId}/jsm/assets/workspace/${apiConfig.workspaceId}/v1/object/aql?cb=${cacheBuster}`;
-    
-    const auth = btoa(`${apiConfig.email}:${apiConfig.token}`);
-    
-    console.log("Initiating Sync with:", url);
+  // Define the three common Atlassian Assets API path variants
+  const paths = [
+    `https://api.atlassian.com/ex/jira/${apiConfig.cloudId}/jsm/assets/workspace/${apiConfig.workspaceId}/v1/object/aql`,
+    `https://api.atlassian.com/ex/jira/${apiConfig.cloudId}/assets/workspace/${apiConfig.workspaceId}/v1/object/aql`,
+    `https://api.atlassian.com/jsm/assets/workspace/${apiConfig.workspaceId}/v1/object/aql`
+  ];
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Authorization": `Basic ${auth}`,
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "X-ExperimentalApi": "opt-in" 
-      },
-      body: JSON.stringify({
-        qlQuery: "objectType != null"
-      })
-    });
+  let success = false;
+  let lastError = null;
+  let remoteAssets = [];
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Atlassian Error: ${response.status} ${errorData.errorMessages ? errorData.errorMessages[0] : response.statusText}`);
+  for (let i = 0; i < paths.length; i++) {
+    const currentUrl = `${paths[i]}?cb=${Date.now()}`;
+    console.log(`Attempting Sync Path ${i + 1}/${paths.length}:`, currentUrl);
+
+    try {
+      const auth = btoa(`${apiConfig.email}:${apiConfig.token}`);
+      const response = await fetch(currentUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${auth}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-ExperimentalApi": "opt-in"
+        },
+        body: JSON.stringify({
+          qlQuery: "objectType != null",
+          includeAttributes: true
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.values) {
+          remoteAssets = data.values.map(mapAtlassianObject);
+          success = true;
+          console.log(`Sync succeeded on Path ${i + 1}!`);
+          break; // Stop trying other paths
+        }
+      } else {
+        const errText = await response.text();
+        lastError = new Error(`HTTP ${response.status}: ${errText || response.statusText}`);
+        console.warn(`Path ${i + 1} failed:`, lastError.message);
+      }
+    } catch (err) {
+      lastError = err;
+      console.warn(`Path ${i + 1} execution error:`, err.message);
     }
+  }
 
-    const data = await response.json();
-    
-    // Handle empty but successful response
-    if (!data.values || data.values.length === 0) {
-      showToast(t("notif_sync_success").replace("{count}", "0"), "info");
-      return;
-    }
-    
-    const remoteAssets = data.values.map(mapAtlassianObject);
-
+  if (success) {
     // Merge strategy: Remote Overwrite
     remoteAssets.forEach(remote => {
-      const index = assets.findIndex(a => a.id === remote.id);
+      const index = assets.findIndex(a => a.id.toLowerCase() === remote.id.toLowerCase());
       if (index !== -1) {
         assets[index] = { ...assets[index], ...remote };
       } else {
@@ -115,10 +129,9 @@ async function syncWithAtlassian() {
     updateMetrics();
     renderAssetList();
     showToast(t("notif_sync_success").replace("{count}", remoteAssets.length), "success");
-
-  } catch (err) {
-    console.error("Sync failed:", err);
-    showToast(t("notif_sync_error").replace("{error}", err.message), "error");
+  } else {
+    console.error("All sync paths failed. Last error:", lastError);
+    showToast(t("notif_sync_error").replace("{error}", lastError ? lastError.message : "404 Not Found"), "error");
   }
 }
 
