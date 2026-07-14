@@ -588,68 +588,93 @@ async function syncWithAtlassian() {
   let remoteAssets = [];
 
   for (let i = 0; i < paths.length; i++) {
-    const currentUrl = `${paths[i]}?cb=${Date.now()}`;
-    console.log(`Attempting Sync Path ${i + 1}/${paths.length}:`, currentUrl);
+    let pageStart = 0;
+    const pageLimit = 50; // JSM Cloud standard max objects per page
+    let allValuesForPath = [];
+    let pathSuccess = false;
+    let hasMore = true;
 
-    try {
-      const auth = btoa(`${apiConfig.email}:${apiConfig.token}`);
-      const response = await fetch(currentUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": `Basic ${auth}`,
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "X-ExperimentalApi": "opt-in"
-        },
-        body: JSON.stringify({
-          qlQuery: "objectType != null",
-          includeAttributes: true,
-          size: 1000
-        })
-      });
+    while (hasMore) {
+      const currentUrl = `${paths[i]}?start=${pageStart}&limit=${pageLimit}&cb=${Date.now()}`;
+      console.log(`Syncing page starting at ${pageStart}...`, currentUrl);
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.values) {
-          remoteAssets = data.values.map(mapAtlassianObject);
-          success = true;
-          
-          // Save working base URL and dynamic mapping
-          const currentBase = paths[i].replace("/object/aql", "");
-          localStorage.setItem("assetGuard_base_url", currentBase);
-          atlassianBaseUrl = currentBase;
+      try {
+        const auth = btoa(`${apiConfig.email}:${apiConfig.token}`);
+        const response = await fetch(currentUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Basic ${auth}`,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "X-ExperimentalApi": "opt-in"
+          },
+          body: JSON.stringify({
+            qlQuery: "objectType != null",
+            includeAttributes: true
+          })
+        });
 
-          // Build attribute ID mapping dynamically from the synced assets' attributes
-          const attrMap = {};
-          let detectedObjectTypeId = "";
-          data.values.forEach(obj => {
-            if (obj.objectType && obj.objectType.id) {
-              detectedObjectTypeId = obj.objectType.id;
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.values) {
+            allValuesForPath = allValuesForPath.concat(data.values);
+            
+            // Check if we reached the end of the pages
+            if (data.values.length < pageLimit || (data.isLastPage === true)) {
+              hasMore = false;
+            } else {
+              pageStart += data.values.length;
             }
-            if (obj.attributes) {
-              obj.attributes.forEach(attr => {
-                if (attr.objectTypeAttribute && attr.objectTypeAttribute.name && attr.objectTypeAttribute.id) {
-                  attrMap[attr.objectTypeAttribute.name.toLowerCase()] = attr.objectTypeAttribute.id;
-                }
-              });
+            pathSuccess = true;
+          } else {
+            hasMore = false;
+          }
+        } else {
+          const errText = await response.text();
+          lastError = new Error(`HTTP ${response.status}: ${errText || response.statusText}`);
+          console.warn(`Page starting at ${pageStart} failed:`, lastError.message);
+          hasMore = false;
+          pathSuccess = false;
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`Exception on page starting at ${pageStart}:`, err.message);
+        hasMore = false;
+        pathSuccess = false;
+      }
+    }
+
+    if (pathSuccess && allValuesForPath.length > 0) {
+      remoteAssets = allValuesForPath.map(mapAtlassianObject);
+      success = true;
+
+      // Save working base URL and dynamic mapping
+      const currentBase = paths[i].replace("/object/aql", "");
+      localStorage.setItem("assetGuard_base_url", currentBase);
+      atlassianBaseUrl = currentBase;
+
+      // Build attribute ID mapping dynamically from the synced assets' attributes
+      const attrMap = {};
+      let detectedObjectTypeId = "";
+      allValuesForPath.forEach(obj => {
+        if (obj.objectType && obj.objectType.id) {
+          detectedObjectTypeId = obj.objectType.id;
+        }
+        if (obj.attributes) {
+          obj.attributes.forEach(attr => {
+            if (attr.objectTypeAttribute && attr.objectTypeAttribute.name && attr.objectTypeAttribute.id) {
+              attrMap[attr.objectTypeAttribute.name.toLowerCase()] = attr.objectTypeAttribute.id;
             }
           });
-          if (detectedObjectTypeId) {
-            localStorage.setItem("assetGuard_detected_object_type_id", detectedObjectTypeId);
-          }
-          localStorage.setItem("assetGuard_attribute_map", JSON.stringify(attrMap));
-
-          console.log(`Sync succeeded on Path ${i + 1}!`);
-          break; // Stop trying other paths
         }
-      } else {
-        const errText = await response.text();
-        lastError = new Error(`HTTP ${response.status}: ${errText || response.statusText}`);
-        console.warn(`Path ${i + 1} failed:`, lastError.message);
+      });
+      if (detectedObjectTypeId) {
+        localStorage.setItem("assetGuard_detected_object_type_id", detectedObjectTypeId);
       }
-    } catch (err) {
-      lastError = err;
-      console.warn(`Path ${i + 1} execution error:`, err.message);
+      localStorage.setItem("assetGuard_attribute_map", JSON.stringify(attrMap));
+
+      console.log(`Sync succeeded on Path ${i + 1} with ${allValuesForPath.length} total assets retrieved!`);
+      break; // Stop trying other paths
     }
   }
 
@@ -1539,7 +1564,7 @@ function setupEventListeners() {
     }
 
     // 2. Try to find Cloud ID / Subdomain
-    const domainMatch = url.match(/https?:\/\/([a-z0-9-]+)\.atlassian\.net/i);
+    const domainMatch = url.match(/https?:\/\/([a-z0-9-]+)\.(atlassian\.net|jira\.com)/i);
     if (domainMatch) {
        const sub = domainMatch[1].toLowerCase();
        if (!["jira", "admin", "id", "assets"].includes(sub)) {
