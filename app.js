@@ -1446,10 +1446,50 @@ function setupEventListeners() {
   // Magic URL Sniffer (Global Paste Listener for Settings)
   on("settings-modal", "paste", (e) => {
     const url = (e.clipboardData || window.clipboardData).getData('text').trim();
-    if (!url || !url.includes("atlassian.net")) return; 
+    if (!url || (!url.includes("atlassian.net") && !url.includes("api.atlassian.com"))) return; 
     
     // Helper to clean IDs
     const clean = (id) => id ? id.replace(/[^a-z0-9-]/gi, "").trim() : "";
+
+    // Method B Bypass: If the pasted URL already contains raw UUID strings (e.g. copied from Developer Tools), extract them directly
+    const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+    const allUUIDs = url.match(uuidPattern);
+    
+    if (allUUIDs && allUUIDs.length > 0) {
+      let directCloudId = "";
+      let directWorkspaceId = "";
+
+      // Extract Cloud ID immediately following '/ex/jira/'
+      const cloudIdMatch = url.match(/\/ex\/jira\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+      if (cloudIdMatch) {
+        directCloudId = cloudIdMatch[1];
+      } else {
+        directCloudId = allUUIDs[0];
+      }
+
+      // Extract Workspace ID immediately following '/workspace/'
+      const workspaceIdMatch = url.match(/\/workspace\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+      if (workspaceIdMatch) {
+        directWorkspaceId = workspaceIdMatch[1];
+      } else if (allUUIDs.length > 1) {
+        directWorkspaceId = allUUIDs[1];
+      }
+
+      if (directCloudId) {
+        document.getElementById("api-cloud-id").value = directCloudId;
+        apiConfig.cloudId = directCloudId;
+      }
+      if (directWorkspaceId) {
+        document.getElementById("api-workspace-id").value = directWorkspaceId;
+        apiConfig.workspaceId = directWorkspaceId;
+      }
+
+      if (directCloudId || directWorkspaceId) {
+        saveState();
+        showToast("Method B Direct UUIDs extracted & loaded automatically!", "success");
+        return; // Direct extraction complete, bypass subdomain resolution
+      }
+    }
 
     // 1. Try to find Workspace ID (Object Schema ID) using multiple pattern fallbacks
     let workspaceId = "";
