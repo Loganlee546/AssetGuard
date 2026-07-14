@@ -623,13 +623,13 @@ async function syncWithAtlassian() {
 
   for (let i = 0; i < paths.length; i++) {
     let pageStart = 0;
-    const pageLimit = 25; // Align exactly with Atlassian's default 25 page-size!
+    const pageLimit = 50; // JSM Cloud standard max objects per page
     let allValuesForPath = [];
     let pathSuccess = false;
     let hasMore = true;
 
     while (hasMore) {
-      const currentUrl = `${paths[i]}?start=${pageStart}&limit=${pageLimit}&resultsPerPage=${pageLimit}&cb=${Date.now()}`;
+      const currentUrl = `${paths[i]}?start=${pageStart}&limit=${pageLimit}&cb=${Date.now()}`;
       console.log(`Syncing page starting at ${pageStart}...`, currentUrl);
 
       try {
@@ -646,8 +646,7 @@ async function syncWithAtlassian() {
             qlQuery: "objectType != null",
             includeAttributes: true,
             start: pageStart,
-            limit: pageLimit,
-            resultsPerPage: pageLimit
+            limit: pageLimit
           })
         });
 
@@ -747,31 +746,12 @@ function mapAtlassianObject(obj) {
     return attr && attr.objectAttributeValues && attr.objectAttributeValues.length > 0 ? attr.objectAttributeValues[0].displayValue : "";
   };
 
-  let categoryVal = getAttr("Category");
-  if (!categoryVal && obj.objectType) {
-    const typeId = String(obj.objectType.id || "");
-    const typeName = String(obj.objectType.name || "").toLowerCase();
-    
-    if (typeId === "3" || typeName.includes("computer") || typeName.includes("laptop")) {
-      categoryVal = "Laptop";
-    } else if (typeId === "163" || typeName.includes("charger") || typeName.includes("power")) {
-      categoryVal = "Charger";
-    } else if (typeName.includes("phone") || typeName.includes("mobile")) {
-      categoryVal = "Phone";
-    } else if (typeName.includes("tablet") || typeName.includes("ipad")) {
-      categoryVal = "Tablet";
-    } else {
-      categoryVal = obj.objectType.name || "IT Asset";
-    }
-  }
-  if (!categoryVal) categoryVal = "IT Asset";
-
   return {
     atlassianObjectId: obj.id, // Store original Jira Assets ID
     id: obj.label || obj.id,
     name: obj.name || obj.label || obj.id,
     model: getAttr("Model") || obj.name || "Standard Model",
-    category: categoryVal,
+    category: getAttr("Category") || "IT Asset",
     status: getAttr("Status") || "Open",
     owner: getAttr("Owner") || "",
     condition: "Good",
