@@ -603,7 +603,8 @@ async function syncWithAtlassian() {
         },
         body: JSON.stringify({
           qlQuery: "objectType != null",
-          includeAttributes: true
+          includeAttributes: true,
+          size: 1000
         })
       });
 
@@ -1544,7 +1545,6 @@ function setupEventListeners() {
        if (!["jira", "admin", "id", "assets"].includes(sub)) {
          document.getElementById("api-cloud-id").value = clean(sub);
          apiConfig.cloudId = sub;
-
          // Render the customized Method B Assistant with direct URLs for their subdomain!
          const assistant = document.getElementById("magic-setup-assistant");
          if (assistant) {
@@ -1554,19 +1554,22 @@ function setupEventListeners() {
                <i class="fa-solid fa-wand-magic-sparkles"></i> Method B Assistant (Direct UUID Links)
              </div>
              <p style="margin: 0 0 10px 0; font-size: 11px; color: var(--text-muted); line-height: 1.4;">
-               Since you pasted a standard link, we need to convert it to raw UUIDs. Click these links to open them in your browser, then copy the UUID and paste it above!
+               <strong style="color: var(--status-error);">Note:</strong> You must be logged into Jira in this browser tab for these links to load! Click to open, copy the ID, and paste above:
              </p>
              <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 8px;">
                <div>
-                 <strong style="color: var(--text-primary); font-size: 11px;">1. Click to get Cloud ID UUID:</strong><br>
-                 <a href="https://${sub}.atlassian.net/metadata/properties/id" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-family: monospace; font-size: 10.5px; word-break: break-all; display: block; margin-top: 2px;">
-                   https://${sub}.atlassian.net/metadata/properties/id
+                 <strong style="color: var(--text-primary); font-size: 11px;">1. Cloud ID UUID (Try either link):</strong><br>
+                 <a href="https://${sub}.atlassian.net/metadata/properties/id" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-family: monospace; font-size: 10px; word-break: break-all; display: block; margin-top: 2px;">
+                   [Link A] metadata/properties/id
+                 </a>
+                 <a href="https://${sub}.atlassian.net/rest/api/3/serverInfo" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-family: monospace; font-size: 10px; word-break: break-all; display: block; margin-top: 4px;">
+                   [Link B] rest/api/3/serverInfo (Search "baseUrl" UUID)
                  </a>
                </div>
                <div>
-                 <strong style="color: var(--text-primary); font-size: 11px;">2. Click to get Workspace ID UUID:</strong><br>
-                 <a href="https://${sub}.atlassian.net/rest/servicedeskapi/assets/workspace" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-family: monospace; font-size: 10.5px; word-break: break-all; display: block; margin-top: 2px;">
-                   https://${sub}.atlassian.net/rest/servicedeskapi/assets/workspace
+                 <strong style="color: var(--text-primary); font-size: 11px;">2. Workspace ID UUID:</strong><br>
+                 <a href="https://${sub}.atlassian.net/rest/servicedeskapi/assets/workspace" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-family: monospace; font-size: 10px; word-break: break-all; display: block; margin-top: 2px;">
+                   rest/servicedeskapi/assets/workspace
                  </a>
                </div>
              </div>
