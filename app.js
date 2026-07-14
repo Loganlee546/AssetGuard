@@ -1440,6 +1440,8 @@ function setupEventListeners() {
 
   // Settings
   on("settings-btn", "click", () => {
+    const assistant = document.getElementById("magic-setup-assistant");
+    if (assistant) assistant.style.display = "none";
     openModal("settings-modal");
   });
 
@@ -1542,6 +1544,34 @@ function setupEventListeners() {
        if (!["jira", "admin", "id", "assets"].includes(sub)) {
          document.getElementById("api-cloud-id").value = clean(sub);
          apiConfig.cloudId = sub;
+
+         // Render the customized Method B Assistant with direct URLs for their subdomain!
+         const assistant = document.getElementById("magic-setup-assistant");
+         if (assistant) {
+           assistant.style.display = "block";
+           assistant.innerHTML = `
+             <div style="font-weight: bold; color: var(--accent-blue); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; font-size: 12px;">
+               <i class="fa-solid fa-wand-magic-sparkles"></i> Method B Assistant (Direct UUID Links)
+             </div>
+             <p style="margin: 0 0 10px 0; font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+               Since you pasted a standard link, we need to convert it to raw UUIDs. Click these links to open them in your browser, then copy the UUID and paste it above!
+             </p>
+             <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 8px;">
+               <div>
+                 <strong style="color: var(--text-primary); font-size: 11px;">1. Click to get Cloud ID UUID:</strong><br>
+                 <a href="https://${sub}.atlassian.net/metadata/properties/id" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-family: monospace; font-size: 10.5px; word-break: break-all; display: block; margin-top: 2px;">
+                   https://${sub}.atlassian.net/metadata/properties/id
+                 </a>
+               </div>
+               <div>
+                 <strong style="color: var(--text-primary); font-size: 11px;">2. Click to get Workspace ID UUID:</strong><br>
+                 <a href="https://${sub}.atlassian.net/rest/servicedeskapi/assets/workspace" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-family: monospace; font-size: 10.5px; word-break: break-all; display: block; margin-top: 2px;">
+                   https://${sub}.atlassian.net/rest/servicedeskapi/assets/workspace
+                 </a>
+               </div>
+             </div>
+           `;
+         }
          
          // Background resolver to get the real long Cloud ID using our proxy fallback!
          showToast("Resolving Atlassian Cloud ID...", "info");
@@ -1605,6 +1635,8 @@ function setupEventListeners() {
   on("settings-close-btn", "click", () => {
     closeModal("settings-modal");
     document.getElementById("settings-help-section").style.display = "none"; // Reset for next time
+    const assistant = document.getElementById("magic-setup-assistant");
+    if (assistant) assistant.style.display = "none";
   });
 
   on("settings-form", "submit", (e) => {
@@ -1640,6 +1672,10 @@ function setupEventListeners() {
       document.getElementById("api-workspace-id").value = "";
       document.getElementById("api-email").value = "";
       document.getElementById("api-token").value = "";
+      
+      const assistant = document.getElementById("magic-setup-assistant");
+      if (assistant) assistant.style.display = "none";
+
       updateConnectionUI("unconfigured");
       showToast(t("notif_config_cleared"), "info");
     }
