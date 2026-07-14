@@ -16,11 +16,11 @@ let searchQuery = "";
 let isScannerStarting = false;
 let shouldStopScanner = false;
 let currentLanguage = localStorage.getItem("assetGuard_lang") || "en";
-let apiConfig = JSON.parse(localStorage.getItem("assetGuard_api_config")) || {
-  cloudId: "",
-  workspaceId: "",
-  token: ""
-};
+let apiConfig = JSON.parse(localStorage.getItem("assetGuard_api_config")) || {};
+if (!apiConfig.cloudId) apiConfig.cloudId = "smm-sandbox";
+if (!apiConfig.workspaceId) apiConfig.workspaceId = "3";
+if (!apiConfig.email) apiConfig.email = "llee_smm@smm.com";
+if (!apiConfig.token) apiConfig.token = "";
 let atlassianBaseUrl = localStorage.getItem("assetGuard_base_url") || "";
 
 // State persistence
@@ -623,13 +623,13 @@ async function syncWithAtlassian() {
 
   for (let i = 0; i < paths.length; i++) {
     let pageStart = 0;
-    const pageLimit = 50; // JSM Cloud standard max objects per page
+    const pageLimit = 25; // Align exactly with Atlassian's default 25 page-size!
     let allValuesForPath = [];
     let pathSuccess = false;
     let hasMore = true;
 
     while (hasMore) {
-      const currentUrl = `${paths[i]}?start=${pageStart}&limit=${pageLimit}&cb=${Date.now()}`;
+      const currentUrl = `${paths[i]}?start=${pageStart}&limit=${pageLimit}&resultsPerPage=${pageLimit}&cb=${Date.now()}`;
       console.log(`Syncing page starting at ${pageStart}...`, currentUrl);
 
       try {
@@ -646,7 +646,8 @@ async function syncWithAtlassian() {
             qlQuery: "objectType != null",
             includeAttributes: true,
             start: pageStart,
-            limit: pageLimit
+            limit: pageLimit,
+            resultsPerPage: pageLimit
           })
         });
 
