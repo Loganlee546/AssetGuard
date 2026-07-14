@@ -21,6 +21,7 @@ let apiConfig = JSON.parse(localStorage.getItem("assetGuard_api_config")) || {
   workspaceId: "",
   token: ""
 };
+let atlassianBaseUrl = localStorage.getItem("assetGuard_base_url") || "";
 
 // State persistence
 function saveState() {
@@ -61,6 +62,148 @@ function isValidUUID(str) {
   return uuidRegex.test(str.trim());
 }
 
+// Parse smart QR codes containing JSON, URL query parameters, Atlassian URLs, pure numbers, or raw ID strings
+function parseScannedContent(text) {
+  const result = {
+    id: "",
+    name: "",
+    category: "Laptop",
+    serial: "",
+    location: "",
+    condition: "Healthy",
+    cpu: "",
+    ram: "",
+    storage: "",
+    os: ""
+  };
+
+  const trimmed = text.trim();
+  if (!trimmed) return result;
+
+  // 1. Try JSON
+  try {
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      const data = JSON.parse(trimmed);
+      if (data.id) result.id = String(data.id);
+      if (data.name) result.name = String(data.name);
+      if (data.category) result.category = String(data.category);
+      if (data.serial) result.serial = String(data.serial);
+      if (data.serialNumber) result.serial = String(data.serialNumber);
+      if (data.location) result.location = String(data.location);
+      if (data.condition) result.condition = String(data.condition);
+      
+      if (data.specs) {
+        if (data.specs.cpu) result.cpu = String(data.specs.cpu);
+        if (data.specs.ram) result.ram = String(data.specs.ram);
+        if (data.specs.storage) result.storage = String(data.specs.storage);
+        if (data.specs.os) result.os = String(data.specs.os);
+      } else {
+        if (data.cpu) result.cpu = String(data.cpu);
+        if (data.ram) result.ram = String(data.ram);
+        if (data.storage) result.storage = String(data.storage);
+        if (data.os) result.os = String(data.os);
+      }
+      return result;
+    }
+  } catch (e) {
+    console.log("QR parse: Not a JSON string", e);
+  }
+
+  // 2. Try URL query parameters
+  if (trimmed.includes("=") || trimmed.includes("&")) {
+    try {
+      let queryStr = trimmed;
+      if (trimmed.includes("?")) {
+        queryStr = trimmed.split("?")[1];
+      }
+      const params = new URLSearchParams(queryStr);
+      
+      if (params.has("id")) result.id = params.get("id");
+      if (params.has("name")) result.name = params.get("name");
+      if (params.has("category")) result.category = params.get("category");
+      if (params.has("serial")) result.serial = params.get("serial");
+      if (params.has("serialNumber")) result.serial = params.get("serialNumber");
+      if (params.has("location")) result.location = params.get("location");
+      if (params.has("condition")) result.condition = params.get("condition");
+      if (params.has("cpu")) result.cpu = params.get("cpu");
+      if (params.has("ram")) result.ram = params.get("ram");
+      if (params.has("storage")) result.storage = params.get("storage");
+      if (params.has("os")) result.os = params.get("os");
+      
+      return result;
+    } catch (e) {
+      console.log("QR parse: Not query parameters", e);
+    }
+  }
+
+  // 3. Try to sniff if the text is an Atlassian Assets or generic URL containing a numeric ID
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.includes(".atlassian.net") || trimmed.includes("/assets/") || trimmed.includes("/object/")) {
+    try {
+      // Match patterns like /object/1234, /objects/1234, /assets/1234, /asset/1234 or a trailing /1234
+      const objectMatch = trimmed.match(/\/object(?:s)?\/([0-9]+)/i);
+      const assetsMatch = trimmed.match(/\/asset(?:s)?\/([0-9]+)/i);
+      const trailingMatch = trimmed.match(/\/([0-9]+)(?:[?#]|$)/);
+
+      let numericId = "";
+      if (objectMatch) {
+        numericId = objectMatch[1];
+      } else if (assetsMatch) {
+        numericId = assetsMatch[1];
+      } else if (trailingMatch) {
+        numericId = trailingMatch[1];
+      }
+
+      if (numericId) {
+        result.id = "smm" + numericId;
+        result.serial = trimmed; // Keep full URL as fallback serial
+        return result;
+      }
+    } catch (e) {
+      console.log("QR parse: Atlassian ID sniffer exception", e);
+    }
+  }
+
+  // 4. Try to parse if it is a pure numeric ID (the digits next to the QR code, e.g. "1024" or "0421")
+  if (/^[0-9]+$/.test(trimmed) && trimmed.length > 0) {
+    result.id = "smm" + trimmed;
+    result.serial = trimmed;
+    return result;
+  }
+
+  // 5. Try to parse "M" prefixed tags (e.g. "M2379" -> "smm2379")
+  if (trimmed.toLowerCase().startsWith("m") && /^[0-9]+$/.test(trimmed.substring(1))) {
+    result.id = "smm" + trimmed.substring(1);
+    result.serial = trimmed;
+    return result;
+  }
+
+  // 6. Generic plain barcode/raw ID fallback
+  result.id = trimmed;
+  if (trimmed.length > 5) {
+    result.serial = trimmed;
+  }
+  return result;
+}
+
+// Prefills the Add Asset form inputs with a parsed content object
+function prefillAddAssetForm(parsed) {
+  let normalizedId = parsed.id.trim().toUpperCase();
+  if (normalizedId.startsWith("M") && normalizedId.length > 2) {
+    normalizedId = "SMM" + normalizedId.substring(1);
+  }
+
+  document.getElementById("add-id").value = normalizedId;
+  document.getElementById("add-name").value = parsed.name || "";
+  document.getElementById("add-category").value = parsed.category || "Laptop";
+  document.getElementById("add-serial").value = parsed.serial || "";
+  document.getElementById("add-location").value = parsed.location || "";
+  document.getElementById("add-condition").value = parsed.condition || "Healthy";
+  document.getElementById("add-spec-cpu").value = parsed.cpu || "";
+  document.getElementById("add-spec-ram").value = parsed.ram || "";
+  document.getElementById("add-spec-storage").value = parsed.storage || "";
+  document.getElementById("add-spec-os").value = parsed.os || "";
+}
+
 function updateConnectionUI(status, detailsMsg = "") {
   const card = document.getElementById("connection-status-card");
   const badge = document.getElementById("connection-status-badge");
@@ -99,10 +242,53 @@ function updateConnectionUI(status, detailsMsg = "") {
     const time = localStorage.getItem("assetGuard_last_sync_time") || new Date().toLocaleString();
     details.innerHTML = `<span>${t("conn_status_details_connected", { time, count })}</span>`;
   } else if (status === "error") {
-    details.innerHTML = `
-      <span>${t("conn_status_details_error")}</span>
-      <div class="error-details-block">${escapeHTML(detailsMsg)}</div>
-    `;
+    const isFailedToFetch = detailsMsg.toLowerCase().includes("failed to fetch");
+    if (isFailedToFetch) {
+      details.innerHTML = `
+        <span style="color: var(--status-error); font-weight: 600; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-triangle-exclamation"></i> Browser CORS Block Detected</span>
+        <p style="margin-top: 4px; font-size: 12px; color: var(--text-secondary);">
+          Atlassian Cloud APIs restrict web browsers from making direct requests from external origins (CORS security).
+        </p>
+        
+        <div style="margin-top: 12px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="font-weight: 600; font-size: 12px; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-lightbulb" style="color: #FFC400;"></i> How to bypass this:
+          </div>
+          
+          <div style="font-size: 11.5px; line-height: 1.4; color: var(--text-secondary);">
+            <strong style="color: var(--text-primary);">Option A (Easiest - 10 seconds):</strong> Install a CORS Bypass browser extension:
+            <ul style="margin: 6px 0 0 16px; padding: 0; list-style-type: disc;">
+              <li>Search & install the extension: <strong>"Allow CORS: Access-Control-Allow-Origin"</strong> for Chrome/Firefox/Edge.</li>
+              <li>Turn the extension <strong>ON</strong> (extension icon turns green).</li>
+              <li>Click <strong>Sync from Atlassian</strong> again!</li>
+            </ul>
+          </div>
+          
+          <div style="font-size: 11.5px; line-height: 1.4; color: var(--text-secondary); border-top: 1px solid var(--border-color); padding-top: 8px;">
+            <strong style="color: var(--text-primary);">Option B (Manual Inputs):</strong> Find your real UUIDs manually to bypass auto-resolution:
+            <ol style="margin: 6px 0 0 16px; padding: 0; list-style-type: decimal;">
+              <li>Open your Jira Assets web page in your browser.</li>
+              <li>Press <strong>F12</strong> (Developer Tools), go to the <strong>Network</strong> tab.</li>
+              <li>Search for <strong>"aql"</strong> or <strong>"workspace"</strong>, and click any completed request.</li>
+              <li>Copy the UUIDs from the request URL:
+                <ul style="margin-top: 2px; padding-left: 12px; list-style-type: circle;">
+                  <li><strong>Workspace ID</strong> is the long UUID after <code style="font-family: monospace; color: var(--accent-blue);">/workspace/</code></li>
+                  <li><strong>Cloud ID</strong> is the long UUID after <code style="font-family: monospace; color: var(--accent-blue);">/ex/jira/</code></li>
+                </ul>
+              </li>
+              <li>Enter those UUIDs directly into the fields below to bypass auto-resolution!</li>
+            </ol>
+          </div>
+        </div>
+        
+        <div class="error-details-block" style="margin-top: 10px;">Original System Error: ${escapeHTML(detailsMsg)}</div>
+      `;
+    } else {
+      details.innerHTML = `
+        <span>${t("conn_status_details_error")}</span>
+        <div class="error-details-block">${escapeHTML(detailsMsg)}</div>
+      `;
+    }
   }
 }
 
@@ -170,6 +356,138 @@ async function resolveWorkspaceId(cloudId, originalSubdomain) {
     return resolvedId;
   } else {
     throw lastError || new Error("Workspace ID could not be found in response.");
+  }
+}
+
+// Background Sync: Create object in Atlassian JSM Assets
+async function pushNewAssetToAtlassian(asset) {
+  if (!apiConfig.email || !apiConfig.token || !atlassianBaseUrl) {
+    console.log("Atlassian Push (Create) bypassed: Missing configuration or base URL.");
+    return;
+  }
+
+  const auth = btoa(`${apiConfig.email}:${apiConfig.token}`);
+  const headers = {
+    "Authorization": `Basic ${auth}`,
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "X-ExperimentalApi": "opt-in"
+  };
+
+  const objectTypeId = localStorage.getItem("assetGuard_detected_object_type_id") || "2";
+  const attrMap = JSON.parse(localStorage.getItem("assetGuard_attribute_map")) || {};
+
+  const attributes = [];
+  const addAttr = (name, val) => {
+    const attrId = attrMap[name.toLowerCase()];
+    if (attrId && val) {
+      attributes.push({
+        objectTypeAttributeId: attrId,
+        objectAttributeValues: [{ value: String(val) }]
+      });
+    }
+  };
+
+  // Map fields dynamically based on synced schema mapping
+  addAttr("Model", asset.name);
+  addAttr("Category", asset.category);
+  addAttr("Status", asset.status);
+  addAttr("Owner", asset.owner);
+  addAttr("Serial Number", asset.serialNumber || asset.serial);
+  addAttr("Serial", asset.serialNumber || asset.serial);
+  addAttr("Location", asset.location);
+  
+  if (asset.specs) {
+    addAttr("CPU", asset.specs.cpu);
+    addAttr("RAM", asset.specs.ram);
+    addAttr("Storage", asset.specs.storage);
+    addAttr("OS", asset.specs.os);
+  }
+
+  const payload = {
+    objectTypeId,
+    attributes
+  };
+
+  try {
+    console.log("Pushing new asset to Atlassian:", payload);
+    const res = await fetch(`${atlassianBaseUrl}/object`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.id) {
+        console.log("Successfully created remote asset in Atlassian! ID:", data.id);
+        asset.atlassianObjectId = data.id;
+        saveState();
+        showToast("Asset pushed to Atlassian Cloud!", "success");
+      }
+    } else {
+      const txt = await res.text();
+      console.warn("Atlassian POST failed:", txt);
+    }
+  } catch (err) {
+    console.error("Atlassian POST network error:", err);
+  }
+}
+
+// Background Sync: Update object in Atlassian JSM Assets
+async function pushUpdateToAtlassian(asset) {
+  if (!apiConfig.email || !apiConfig.token || !atlassianBaseUrl || !asset.atlassianObjectId) {
+    console.log("Atlassian Push (Update) bypassed: Missing configuration, base URL, or remote ID.");
+    return;
+  }
+
+  const auth = btoa(`${apiConfig.email}:${apiConfig.token}`);
+  const headers = {
+    "Authorization": `Basic ${auth}`,
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "X-ExperimentalApi": "opt-in"
+  };
+
+  const attrMap = JSON.parse(localStorage.getItem("assetGuard_attribute_map")) || {};
+
+  const attributes = [];
+  const addAttr = (name, val) => {
+    const attrId = attrMap[name.toLowerCase()];
+    if (attrId) {
+      attributes.push({
+        objectTypeAttributeId: attrId,
+        objectAttributeValues: [{ value: String(val || "") }]
+      });
+    }
+  };
+
+  // Map the updateable fields
+  addAttr("Status", asset.status);
+  addAttr("Owner", asset.owner);
+  addAttr("Location", asset.location);
+
+  const payload = {
+    attributes
+  };
+
+  try {
+    console.log(`Pushing updates to Atlassian for asset ${asset.atlassianObjectId}:`, payload);
+    const res = await fetch(`${atlassianBaseUrl}/object/${asset.atlassianObjectId}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      console.log("Successfully updated remote asset in Atlassian!");
+      showToast("Updates pushed to Atlassian Cloud!", "success");
+    } else {
+      const txt = await res.text();
+      console.warn("Atlassian PUT failed:", txt);
+    }
+  } catch (err) {
+    console.error("Atlassian PUT network error:", err);
   }
 }
 
@@ -277,6 +595,32 @@ async function syncWithAtlassian() {
         if (data && data.values) {
           remoteAssets = data.values.map(mapAtlassianObject);
           success = true;
+          
+          // Save working base URL and dynamic mapping
+          const currentBase = paths[i].replace("/object/aql", "");
+          localStorage.setItem("assetGuard_base_url", currentBase);
+          atlassianBaseUrl = currentBase;
+
+          // Build attribute ID mapping dynamically from the synced assets' attributes
+          const attrMap = {};
+          let detectedObjectTypeId = "";
+          data.values.forEach(obj => {
+            if (obj.objectType && obj.objectType.id) {
+              detectedObjectTypeId = obj.objectType.id;
+            }
+            if (obj.attributes) {
+              obj.attributes.forEach(attr => {
+                if (attr.objectTypeAttribute && attr.objectTypeAttribute.name && attr.objectTypeAttribute.id) {
+                  attrMap[attr.objectTypeAttribute.name.toLowerCase()] = attr.objectTypeAttribute.id;
+                }
+              });
+            }
+          });
+          if (detectedObjectTypeId) {
+            localStorage.setItem("assetGuard_detected_object_type_id", detectedObjectTypeId);
+          }
+          localStorage.setItem("assetGuard_attribute_map", JSON.stringify(attrMap));
+
           console.log(`Sync succeeded on Path ${i + 1}!`);
           break; // Stop trying other paths
         }
@@ -324,6 +668,7 @@ function mapAtlassianObject(obj) {
   };
 
   return {
+    atlassianObjectId: obj.id, // Store original Jira Assets ID
     id: obj.label || obj.id,
     name: obj.name || obj.label || obj.id,
     model: getAttr("Model") || obj.name || "Standard Model",
@@ -675,7 +1020,7 @@ function bulkReturnAssets(userName) {
 }
 
 // Open Detail/Action Modal
-function openDetailsModal(assetId) {
+function openDetailsModal(assetId, defaultTab = "overview") {
   const asset = assets.find(a => (a.id || "").toLowerCase() === assetId.toLowerCase());
   if (!asset) {
     showToast(t("notif_not_found"), "error");
@@ -760,8 +1105,8 @@ function openDetailsModal(assetId) {
   // Tab Content 4 (QR Code Generator)
   generateQRTag(asset.id);
 
-  // Reset tab focus to "Overview"
-  switchDetailTab("overview");
+  // Reset tab focus to parameterized defaultTab
+  switchDetailTab(defaultTab);
 
   // Show Modal
   openModal("details-modal");
@@ -1410,6 +1755,9 @@ function setupEventListeners() {
     updateMetrics();
     renderAssetList();
     
+    // Push updates to Atlassian Jira in the background
+    pushUpdateToAtlassian(asset);
+    
     closeModal("details-modal");
     showToast(t("notif_saved"), "success");
   });
@@ -1491,6 +1839,9 @@ function setupEventListeners() {
     updateMetrics();
     renderAssetList();
     
+    // Push new asset to Atlassian Jira in the background
+    pushNewAssetToAtlassian(newAsset);
+    
     // Reset Form & Close Modal
     document.getElementById("add-asset-form").reset();
     closeModal("add-asset-modal");
@@ -1502,8 +1853,11 @@ function setupEventListeners() {
     const manualInput = document.getElementById("manual-scan-input").value.trim();
     if (!manualInput) return;
     
-    // Normalize manual input (e.g. M2379 -> smm2379)
-    let normalizedId = manualInput.toLowerCase();
+    // Parse the input (supports raw ID, query params, or JSON strings)
+    const parsed = parseScannedContent(manualInput);
+    
+    // Normalize parsed ID for searching
+    let normalizedId = (parsed.id || "").toLowerCase();
     if (normalizedId.startsWith("m") && normalizedId.length > 2) {
       normalizedId = "smm" + normalizedId.substring(1);
     }
@@ -1512,8 +1866,8 @@ function setupEventListeners() {
       const assetIdLower = (a.id || "").toLowerCase();
       const assetSerialLower = (a.serialNumber || "").toLowerCase();
       return assetIdLower === normalizedId || 
-             assetSerialLower === normalizedId || 
-             assetIdLower === manualInput.toLowerCase();
+             (parsed.serial && assetSerialLower === parsed.serial.toLowerCase()) ||
+             (parsed.id && assetIdLower === parsed.id.toLowerCase());
     });
     
     // Close scanner first
@@ -1522,14 +1876,14 @@ function setupEventListeners() {
     document.getElementById("manual-scan-input").value = "";
 
     if (existing) {
-      // If the laptop exists, open the details modal directly!
-      showToast(t("notif_scan_success", { id: normalizedId }), "success");
-      openDetailsModal(existing.id);
+      // If the laptop exists, open the details modal with the 'edit' (Actions) tab selected!
+      showToast(t("notif_scan_success", { id: existing.id }), "success");
+      openDetailsModal(existing.id, "edit");
     } else {
-      // Only open the Add screen if the laptop is new
+      // Open the Add screen for a new asset and automatically fill out all parsed fields
       showToast(t("notif_new_asset_scanned"), "info");
       openModal("add-asset-modal");
-      document.getElementById("add-id").value = normalizedId;
+      prefillAddAssetForm(parsed);
     }
   });
 }
@@ -1564,8 +1918,11 @@ function startCameraScanner() {
       stopCameraScanner();
       closeModal("scanner-modal");
 
-      // Normalize scanned text (e.g. M2379 -> smm2379)
-      let normalizedId = decodedText.trim().toLowerCase();
+      // Parse the decoded QR content (supports JSON, query params, or raw ID)
+      const parsed = parseScannedContent(decodedText);
+
+      // Normalize scanned text ID (e.g. M2379 -> smm2379)
+      let normalizedId = (parsed.id || "").toLowerCase();
       if (normalizedId.startsWith("m") && normalizedId.length > 2) {
         normalizedId = "smm" + normalizedId.substring(1);
       }
@@ -1574,21 +1931,19 @@ function startCameraScanner() {
         const assetIdLower = (a.id || "").toLowerCase();
         const assetSerialLower = (a.serialNumber || "").toLowerCase();
         return assetIdLower === normalizedId || 
-               assetSerialLower === normalizedId || 
-               assetIdLower === decodedText.toLowerCase();
+               (parsed.serial && assetSerialLower === parsed.serial.toLowerCase()) ||
+               (parsed.id && assetIdLower === parsed.id.toLowerCase());
       });
+      
       if (existing) {
-        showToast(t("notif_scan_success", { id: normalizedId }), "success");
-        openDetailsModal(existing.id);
+        // Existing asset: open directly to the 'edit' actions tab
+        showToast(t("notif_scan_success", { id: existing.id }), "success");
+        openDetailsModal(existing.id, "edit");
       } else {
-        // New asset found! Open the Add Modal
+        // New asset found! Open the Add Asset Modal and pre-fill all available details
         showToast(t("notif_new_asset_scanned"), "info");
-        openModal("add-modal");
-        document.getElementById("add-id").value = normalizedId;
-        // Optionally pre-fill serial if it looks like one
-        if (decodedText.length > 5) {
-          document.getElementById("add-serial").value = decodedText;
-        }
+        openModal("add-asset-modal");
+        prefillAddAssetForm(parsed);
       }
     },
     (errorMessage) => {
