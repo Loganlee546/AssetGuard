@@ -293,32 +293,57 @@ function updateConnectionUI(status, detailsMsg = "") {
 }
 
 async function resolveCloudId(subdomain) {
-  const url = `https://${subdomain}.atlassian.net/metadata/properties/id`;
-  try {
-    const res = await fetch(url);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.id) {
-        return data.id;
-      }
-    }
-  } catch (e) {
-    console.warn("Direct Cloud ID resolve failed (likely CORS), trying public CORS proxy...", e);
+  const serverInfoUrl = `https://${subdomain}.atlassian.net/rest/api/3/serverInfo`;
+  const metadataUrl = `https://${subdomain}.atlassian.net/metadata/properties/id`;
+
+  const urlsToTry = [serverInfoUrl, metadataUrl];
+
+  for (const url of urlsToTry) {
     try {
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-      const proxyRes = await fetch(proxyUrl);
-      if (proxyRes.ok) {
-        const proxyData = await proxyRes.json();
-        if (proxyData && proxyData.contents) {
-          const parsed = JSON.parse(proxyData.contents);
-          if (parsed && parsed.id) {
-            console.log("Successfully resolved Cloud ID via public CORS proxy!");
-            return parsed.id;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          if (data.baseUrl && data.baseUrl.includes("/ex/jira/")) {
+            const match = data.baseUrl.match(/\/ex\/jira\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+            if (match) {
+              console.log("Resolved Cloud ID from serverInfo successfully!");
+              return match[1];
+            }
+          }
+          if (data.id) {
+            console.log("Resolved Cloud ID from metadata successfully!");
+            return data.id;
           }
         }
       }
-    } catch (proxyError) {
-      console.error("CORS Proxy Cloud ID resolution also failed:", proxyError);
+    } catch (e) {
+      console.warn(`Direct fetch to ${url} failed (likely CORS), trying public proxy fallback...`, e);
+      try {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const proxyRes = await fetch(proxyUrl);
+        if (proxyRes.ok) {
+          const proxyData = await proxyRes.json();
+          if (proxyData && proxyData.contents) {
+            const parsed = JSON.parse(proxyData.contents);
+            if (parsed) {
+              if (parsed.baseUrl && parsed.baseUrl.includes("/ex/jira/")) {
+                const match = parsed.baseUrl.match(/\/ex\/jira\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+                if (match) {
+                  console.log("Resolved Cloud ID via proxy from serverInfo successfully!");
+                  return match[1];
+                }
+              }
+              if (parsed.id) {
+                console.log("Resolved Cloud ID via proxy from metadata successfully!");
+                return parsed.id;
+              }
+            }
+          }
+        }
+      } catch (proxyError) {
+        console.error(`Proxy fetch to ${url} also failed:`, proxyError);
+      }
     }
   }
   return null;
@@ -610,7 +635,9 @@ async function syncWithAtlassian() {
           },
           body: JSON.stringify({
             qlQuery: "objectType != null",
-            includeAttributes: true
+            includeAttributes: true,
+            start: pageStart,
+            limit: pageLimit
           })
         });
 
@@ -1583,12 +1610,9 @@ function setupEventListeners() {
              </p>
              <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 8px;">
                <div>
-                 <strong style="color: var(--text-primary); font-size: 11px;">1. Cloud ID UUID (Try either link):</strong><br>
-                 <a href="https://${sub}.atlassian.net/metadata/properties/id" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-family: monospace; font-size: 10px; word-break: break-all; display: block; margin-top: 2px;">
-                   [Link A] metadata/properties/id
-                 </a>
-                 <a href="https://${sub}.atlassian.net/rest/api/3/serverInfo" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-family: monospace; font-size: 10px; word-break: break-all; display: block; margin-top: 4px;">
-                   [Link B] rest/api/3/serverInfo (Search "baseUrl" UUID)
+                 <strong style="color: var(--text-primary); font-size: 11px;">1. Cloud ID UUID:</strong><br>
+                 <a href="https://${sub}.atlassian.net/rest/api/3/serverInfo" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-family: monospace; font-size: 10px; word-break: break-all; display: block; margin-top: 2px;">
+                   rest/api/3/serverInfo (Copy the UUID from "baseUrl")
                  </a>
                </div>
                <div>
