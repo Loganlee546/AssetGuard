@@ -1491,16 +1491,37 @@ function setupEventListeners() {
          document.getElementById("api-cloud-id").value = clean(sub);
          apiConfig.cloudId = sub;
          
-         // Background resolver to get the real long Cloud ID
+         // Background resolver to get the real long Cloud ID using our proxy fallback!
          showToast("Resolving Atlassian Cloud ID...", "info");
-         fetch(`https://${sub}.atlassian.net/metadata/properties/id`)
-           .then(res => res.json())
-           .then(meta => {
-             if (meta && meta.id) {
-               document.getElementById("api-cloud-id").value = meta.id;
-               apiConfig.cloudId = meta.id;
+         resolveCloudId(sub)
+           .then(resolvedCloud => {
+             if (resolvedCloud) {
+               document.getElementById("api-cloud-id").value = resolvedCloud;
+               apiConfig.cloudId = resolvedCloud;
                saveState();
                showToast("Cloud ID resolved successfully!", "success");
+
+               // Attempt to resolve Workspace ID automatically too if credentials are input!
+               const emailInput = document.getElementById("api-email").value.trim();
+               const tokenInput = document.getElementById("api-token").value.trim();
+               if (emailInput && tokenInput && workspaceId && !isValidUUID(workspaceId)) {
+                 showToast("Resolving Workspace ID...", "info");
+                 apiConfig.email = emailInput;
+                 apiConfig.token = tokenInput;
+                 
+                 resolveWorkspaceId(resolvedCloud, sub)
+                   .then(resolvedWorkspace => {
+                     if (resolvedWorkspace) {
+                       document.getElementById("api-workspace-id").value = resolvedWorkspace;
+                       apiConfig.workspaceId = resolvedWorkspace;
+                       saveState();
+                       showToast("Workspace ID resolved automatically!", "success");
+                     }
+                   })
+                   .catch(err => {
+                     console.log("Background Workspace ID auto-resolve bypassed (likely CORS block):", err);
+                   });
+               }
              }
            })
            .catch(err => {
