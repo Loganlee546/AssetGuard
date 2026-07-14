@@ -1459,32 +1459,44 @@ function setupEventListeners() {
       let directCloudId = "";
       let directWorkspaceId = "";
 
-      // Extract Cloud ID immediately following '/ex/jira/'
+      // 1. Try to find Cloud ID (following /ex/jira/)
       const cloudIdMatch = url.match(/\/ex\/jira\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
       if (cloudIdMatch) {
         directCloudId = cloudIdMatch[1];
-      } else {
-        directCloudId = allUUIDs[0];
       }
 
-      // Extract Workspace ID immediately following '/workspace/'
+      // 2. Try to find Workspace ID (following /workspace/)
       const workspaceIdMatch = url.match(/\/workspace\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
       if (workspaceIdMatch) {
         directWorkspaceId = workspaceIdMatch[1];
-      } else if (allUUIDs.length > 1) {
-        directWorkspaceId = allUUIDs[1];
       }
 
+      // 3. Fallbacks ONLY if we matched multiple UUIDs in an unstructured string
+      if (!directCloudId && !directWorkspaceId && allUUIDs.length >= 2) {
+        directCloudId = allUUIDs[0];
+        directWorkspaceId = allUUIDs[1];
+      } else if (!directCloudId && !directWorkspaceId && allUUIDs.length === 1) {
+        // If there's only 1 UUID and we don't have structural path matching, try to see where it fits
+        if (url.includes("/ex/jira/")) {
+          directCloudId = allUUIDs[0];
+        } else if (url.includes("/workspace/")) {
+          directWorkspaceId = allUUIDs[0];
+        }
+      }
+
+      let updatedAny = false;
       if (directCloudId) {
         document.getElementById("api-cloud-id").value = directCloudId;
         apiConfig.cloudId = directCloudId;
+        updatedAny = true;
       }
       if (directWorkspaceId) {
         document.getElementById("api-workspace-id").value = directWorkspaceId;
         apiConfig.workspaceId = directWorkspaceId;
+        updatedAny = true;
       }
 
-      if (directCloudId || directWorkspaceId) {
+      if (updatedAny) {
         saveState();
         showToast("Method B Direct UUIDs extracted & loaded automatically!", "success");
         return; // Direct extraction complete, bypass subdomain resolution
@@ -1562,10 +1574,13 @@ function setupEventListeners() {
                      console.log("Background Workspace ID auto-resolve bypassed (likely CORS block):", err);
                    });
                }
+             } else {
+               console.warn("Could not resolve Cloud ID to a UUID. Subdomain set as fallback.");
+               showToast("CORS block or private sandbox. Please turn on 'Allow CORS' extension or use DevTools link!", "warning");
              }
            })
            .catch(err => {
-             console.log("Background ID resolver failed:", err);
+             console.log("Background ID resolver exception:", err);
              showToast("Workspace ID loaded. Subdomain saved as fallback.", "info");
            });
        }
