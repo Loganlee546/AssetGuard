@@ -623,13 +623,13 @@ async function syncWithAtlassian() {
 
   for (let i = 0; i < paths.length; i++) {
     let pageStart = 0;
-    const pageLimit = 50; // JSM Cloud standard max objects per page
+    const pageLimit = 25; // Align exactly with Atlassian's default 25 page-size!
     let allValuesForPath = [];
     let pathSuccess = false;
     let hasMore = true;
 
     while (hasMore) {
-      const currentUrl = `${paths[i]}?start=${pageStart}&limit=${pageLimit}&cb=${Date.now()}`;
+      const currentUrl = `${paths[i]}?start=${pageStart}&limit=${pageLimit}&resultsPerPage=${pageLimit}&cb=${Date.now()}`;
       console.log(`Syncing page starting at ${pageStart}...`, currentUrl);
 
       try {
@@ -646,20 +646,28 @@ async function syncWithAtlassian() {
             qlQuery: "objectType != null",
             includeAttributes: true,
             start: pageStart,
-            limit: pageLimit
+            resultsPerPage: pageLimit
           })
         });
 
         if (response.ok) {
           const data = await response.json();
-          if (data && data.values) {
+          if (data && data.values && data.values.length > 0) {
             allValuesForPath = allValuesForPath.concat(data.values);
             
-            // Check if we reached the end of the pages
-            if (data.values.length < pageLimit || (data.isLastPage === true)) {
-              hasMore = false;
+            // Advance start offset by the actual number of assets returned
+            pageStart += data.values.length;
+            
+            // Check if we retrieved everything
+            if (data.totalFilterCount !== undefined) {
+              if (allValuesForPath.length >= data.totalFilterCount) {
+                hasMore = false;
+              }
             } else {
-              pageStart += data.values.length;
+              // Fallback: Stop if less than the requested limit is returned
+              if (data.values.length < pageLimit || data.isLastPage === true) {
+                hasMore = false;
+              }
             }
             pathSuccess = true;
           } else {
