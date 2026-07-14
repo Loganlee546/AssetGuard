@@ -293,8 +293,9 @@ function updateConnectionUI(status, detailsMsg = "") {
 }
 
 async function resolveCloudId(subdomain) {
+  const url = `https://${subdomain}.atlassian.net/metadata/properties/id`;
   try {
-    const res = await fetch(`https://${subdomain}.atlassian.net/metadata/properties/id`);
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       if (data && data.id) {
@@ -302,7 +303,23 @@ async function resolveCloudId(subdomain) {
       }
     }
   } catch (e) {
-    console.warn("Could not resolve Cloud ID from metadata:", e);
+    console.warn("Direct Cloud ID resolve failed (likely CORS), trying public CORS proxy...", e);
+    try {
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      const proxyRes = await fetch(proxyUrl);
+      if (proxyRes.ok) {
+        const proxyData = await proxyRes.json();
+        if (proxyData && proxyData.contents) {
+          const parsed = JSON.parse(proxyData.contents);
+          if (parsed && parsed.id) {
+            console.log("Successfully resolved Cloud ID via public CORS proxy!");
+            return parsed.id;
+          }
+        }
+      }
+    } catch (proxyError) {
+      console.error("CORS Proxy Cloud ID resolution also failed:", proxyError);
+    }
   }
   return null;
 }
