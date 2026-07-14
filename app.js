@@ -1499,6 +1499,9 @@ function setupEventListeners() {
   on("sync-atlassian-btn", "click", () => {
     syncWithAtlassian();
   });
+  on("main-sync-atlassian-btn", "click", () => {
+    syncWithAtlassian();
+  });
 
   // Settings
   on("settings-btn", "click", () => {
