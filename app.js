@@ -293,6 +293,15 @@ function updateConnectionUI(status, detailsMsg = "") {
 }
 
 async function resolveCloudId(subdomain) {
+  const emailVal = (document.getElementById("api-email")?.value || "").trim() || apiConfig.email;
+  const tokenVal = (document.getElementById("api-token")?.value || "").trim() || apiConfig.token;
+  
+  const headers = {};
+  if (emailVal && tokenVal) {
+    headers["Authorization"] = `Basic ${btoa(`${emailVal}:${tokenVal}`)}`;
+  }
+  headers["Accept"] = "application/json";
+
   const serverInfoUrl = `https://${subdomain}.atlassian.net/rest/api/3/serverInfo`;
   const metadataUrl = `https://${subdomain}.atlassian.net/metadata/properties/id`;
 
@@ -300,7 +309,7 @@ async function resolveCloudId(subdomain) {
 
   for (const url of urlsToTry) {
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { headers });
       if (res.ok) {
         const data = await res.json();
         if (data) {
@@ -1603,24 +1612,13 @@ function setupEventListeners() {
            assistant.style.display = "block";
            assistant.innerHTML = `
              <div style="font-weight: bold; color: var(--accent-blue); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; font-size: 12px;">
-               <i class="fa-solid fa-wand-magic-sparkles"></i> Method B Assistant (Direct UUID Links)
+               <i class="fa-solid fa-wand-magic-sparkles"></i> Magic Setup Assistant
              </div>
              <p style="margin: 0 0 10px 0; font-size: 11px; color: var(--text-muted); line-height: 1.4;">
-               <strong style="color: var(--status-error);">Note:</strong> You must be logged into Jira in this browser tab for these links to load! Click to open, copy the ID, and paste above:
+               The background resolver is automatically communicating with Atlassian using your Email & API Token to fetch and configure your secure UUIDs...
              </p>
-             <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 8px;">
-               <div>
-                 <strong style="color: var(--text-primary); font-size: 11px;">1. Cloud ID UUID:</strong><br>
-                 <a href="https://${sub}.atlassian.net/rest/api/3/serverInfo" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-family: monospace; font-size: 10px; word-break: break-all; display: block; margin-top: 2px;">
-                   rest/api/3/serverInfo (Copy the UUID from "baseUrl")
-                 </a>
-               </div>
-               <div>
-                 <strong style="color: var(--text-primary); font-size: 11px;">2. Workspace ID UUID:</strong><br>
-                 <a href="https://${sub}.atlassian.net/rest/servicedeskapi/assets/workspace" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-family: monospace; font-size: 10px; word-break: break-all; display: block; margin-top: 2px;">
-                   rest/servicedeskapi/assets/workspace
-                 </a>
-               </div>
+             <div id="magic-status-step" style="font-size: 11.5px; color: var(--text-primary); font-weight: 600; display: flex; align-items: center; gap: 6px; border-top: 1px solid var(--border-color); padding-top: 8px;">
+               <i class="fa-solid fa-spinner fa-spin" style="color: var(--accent-blue);"></i> Resolving secure Cloud UUID...
              </div>
            `;
          }
@@ -1634,6 +1632,11 @@ function setupEventListeners() {
                apiConfig.cloudId = resolvedCloud;
                saveState();
                showToast("Cloud ID resolved successfully!", "success");
+               
+               const statusStep = document.getElementById("magic-status-step");
+               if (statusStep) {
+                 statusStep.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--status-success);"></i> Cloud ID UUID Resolved!`;
+               }
 
                // Attempt to resolve Workspace ID automatically too if credentials are input!
                const emailInput = document.getElementById("api-email").value.trim();
@@ -1643,6 +1646,10 @@ function setupEventListeners() {
                  apiConfig.email = emailInput;
                  apiConfig.token = tokenInput;
                  
+                 if (statusStep) {
+                   statusStep.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color: var(--accent-blue);"></i> Resolving secure Workspace UUID...`;
+                 }
+                 
                  resolveWorkspaceId(resolvedCloud, sub)
                    .then(resolvedWorkspace => {
                      if (resolvedWorkspace) {
@@ -1650,6 +1657,9 @@ function setupEventListeners() {
                        apiConfig.workspaceId = resolvedWorkspace;
                        saveState();
                        showToast("Workspace ID resolved automatically!", "success");
+                       if (statusStep) {
+                         statusStep.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--status-success);"></i> Both UUIDs Resolved & Saved!`;
+                       }
                      }
                    })
                    .catch(err => {
@@ -1659,6 +1669,10 @@ function setupEventListeners() {
              } else {
                console.warn("Could not resolve Cloud ID to a UUID. Subdomain set as fallback.");
                showToast("CORS block or private sandbox. Please turn on 'Allow CORS' extension or use DevTools link!", "warning");
+               const statusStep = document.getElementById("magic-status-step");
+               if (statusStep) {
+                 statusStep.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="color: var(--status-warning);"></i> Run with 'Allow CORS' turned ON to resolve UUIDs!`;
+               }
              }
            })
            .catch(err => {
