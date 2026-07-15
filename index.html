@@ -121,6 +121,17 @@
 
     <div class="asset-grid" id="asset-list-grid"></div>
 
+    <!-- Client-side Premium Pagination Controls -->
+    <div id="pagination-controls" style="display: none; justify-content: center; align-items: center; gap: 20px; margin: 24px auto 12px auto; padding: 10px 20px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 30px; max-width: max-content;">
+      <button id="prev-page-btn" class="btn btn-secondary" style="border-radius: 20px; padding: 6px 16px; font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s ease;">
+        <i class="fa-solid fa-chevron-left" style="font-size: 10px;"></i> Prev
+      </button>
+      <span id="page-indicator" style="font-size: 13px; font-weight: 600; color: var(--text-primary); min-width: 100px; text-align: center;">Page 1 of 1</span>
+      <button id="next-page-btn" class="btn btn-secondary" style="border-radius: 20px; padding: 6px 16px; font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s ease;">
+        Next <i class="fa-solid fa-chevron-right" style="font-size: 10px;"></i>
+      </button>
+    </div>
+
     <div id="empty-state" style="display: none;">
       <i class="fa-solid fa-box-open"></i>
       <h3 data-i18n="no_results">No Assets Found</h3>
@@ -151,6 +162,12 @@
             <div class="meta-item"><strong data-i18n="location">Location</strong>: <span id="view-location">--</span></div>
             <div class="meta-item"><strong data-i18n="status">Status</strong>: <span id="view-status-badge" class="status-badge">--</span></div>
             <div class="meta-item"><strong data-i18n="owner">Owner</strong>: <span id="view-owner-text">--</span></div>
+            <div class="meta-item" id="view-jira-link-container" style="display: none;">
+               <strong style="color: var(--text-primary);">Atlassian Assets</strong>: 
+               <a id="view-jira-link" href="#" target="_blank" style="color: var(--accent-blue); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; border-bottom: 1px dashed var(--accent-blue);">
+                 <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 11px;"></i> Open in Jira
+               </a>
+             </div>
           </div>
           <div style="margin-top: 16px;">
             <h4 class="detail-label" data-i18n="specs">Specifications</h4>

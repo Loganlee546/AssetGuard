@@ -13,6 +13,8 @@ let html5QrScanner = null;
 let activeCategory = "All";
 let activeStatus = "All";
 let searchQuery = "";
+let currentPage = 1;
+let assetsPerPage = 50; // Dynamic client-side layout pagination (default 50 per page!)
 let isScannerStarting = false;
 let shouldStopScanner = false;
 let currentLanguage = localStorage.getItem("assetGuard_lang") || "en";
@@ -663,7 +665,7 @@ async function syncWithAtlassian() {
 
   for (let i = 0; i < paths.length; i++) {
     let pageStart = 0;
-    const pageLimit = 100; // Boost page size to 100 to reduce network roundtrips by 4x!
+    const pageLimit = 25; // Atlassian enforces a strict maximum page-size limit of 25 for AQL queries. Keeping this at 25 allows smooth, infinite page-looping!
     let allValuesForPath = [];
     let pathSuccess = false;
     let hasMore = true;
@@ -923,7 +925,9 @@ function updateMetrics() {
 }
 
 // Render Asset Catalog List
-function renderAssetList() {
+function renderAssetList(resetPage = false) {
+  if (resetPage) currentPage = 1;
+
   const grid = document.getElementById("asset-list-grid");
   if (!grid) return;
   grid.innerHTML = "";
@@ -945,9 +949,32 @@ function renderAssetList() {
     return categoryMatch && statusMatch && searchMatch;
   });
 
+  const totalPages = Math.ceil(filtered.length / assetsPerPage);
+  if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
+
+  const startNum = filtered.length === 0 ? 0 : (currentPage - 1) * assetsPerPage + 1;
+  const endNum = Math.min(currentPage * assetsPerPage, filtered.length);
+
   const counterEl = document.getElementById("results-counter");
   if (counterEl) {
-    counterEl.textContent = t("showing_results", { count: filtered.length, total: assets.length });
+    counterEl.textContent = `Showing ${startNum} - ${endNum} of ${filtered.length} assets (Total: ${assets.length})`;
+  }
+
+  // Manage client-side pagination buttons state & visibility
+  const paginationControls = document.getElementById("pagination-controls");
+  const pageIndicator = document.getElementById("page-indicator");
+  const prevBtn = document.getElementById("prev-page-btn");
+  const nextBtn = document.getElementById("next-page-btn");
+  
+  if (paginationControls && pageIndicator && prevBtn && nextBtn) {
+    if (filtered.length > assetsPerPage) {
+      paginationControls.style.display = "flex";
+      pageIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
+      prevBtn.disabled = (currentPage === 1);
+      nextBtn.disabled = (currentPage === totalPages);
+    } else {
+      paginationControls.style.display = "none";
+    }
   }
 
   const emptyState = document.getElementById("empty-state");
@@ -960,7 +987,10 @@ function renderAssetList() {
     grid.style.display = "grid";
   }
 
-  filtered.forEach((asset, index) => {
+  // Slice results to render only the 50 assets for the current page
+  const pageAssets = filtered.slice((currentPage - 1) * assetsPerPage, currentPage * assetsPerPage);
+
+  pageAssets.forEach((asset, index) => {
     const card = document.createElement("div");
     card.className = "asset-card";
     card.style.animationDelay = `${index * 0.05}s`;
@@ -1156,6 +1186,18 @@ function bulkReturnAssets(userName) {
   showToast(t("notif_saved"), "success");
 }
 
+// Helper to resolve Atlassian Direct Object URL
+function getAtlassianObjectUrl(objectId) {
+  let sub = localStorage.getItem("assetGuard_subdomain") || "";
+  if (!sub && apiConfig.cloudId && !apiConfig.cloudId.includes("-")) {
+    sub = apiConfig.cloudId;
+  }
+  if (!sub) {
+    sub = "smm-sandbox"; // Standard project fallback
+  }
+  return `https://${sub}.atlassian.net/jira/assets/object/${objectId}`;
+}
+
 // Open Detail/Action Modal
 function openDetailsModal(assetId, defaultTab = "overview") {
   const asset = assets.find(a => (a.id || "").toLowerCase() === assetId.toLowerCase());
@@ -1166,6 +1208,18 @@ function openDetailsModal(assetId, defaultTab = "overview") {
 
   // Set Title
   document.getElementById("details-modal-title").textContent = asset.id;
+
+  // Atlassian Link Setup
+  const jiraLinkContainer = document.getElementById("view-jira-link-container");
+  const jiraLink = document.getElementById("view-jira-link");
+  if (jiraLinkContainer && jiraLink) {
+    if (asset.atlassianObjectId) {
+      jiraLink.href = getAtlassianObjectUrl(asset.atlassianObjectId);
+      jiraLinkContainer.style.display = "block";
+    } else {
+      jiraLinkContainer.style.display = "none";
+    }
+  }
 
   // Overview Tab Fields
   document.getElementById("view-name").textContent = asset.name;
@@ -1498,7 +1552,7 @@ function setupEventListeners() {
       if (moreSelect) moreSelect.value = "";
       
       activeCategory = e.target.getAttribute("data-category");
-      renderAssetList();
+      renderAssetList(true);
     }
   });
 
@@ -1511,7 +1565,7 @@ function setupEventListeners() {
     document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
     
     activeCategory = selectedCategory;
-    renderAssetList();
+    renderAssetList(true);
   });
 
   // Status filters click
@@ -1520,7 +1574,7 @@ function setupEventListeners() {
       document.querySelectorAll(".filter-chip").forEach(btn => btn.classList.remove("active"));
       e.target.classList.add("active");
       activeStatus = e.target.getAttribute("data-status");
-      renderAssetList();
+      renderAssetList(true);
     }
   });
 
@@ -1541,7 +1595,40 @@ function setupEventListeners() {
   // Search input change
   on("asset-search-input", "input", (e) => {
     searchQuery = e.target.value;
-    renderAssetList();
+    renderAssetList(true);
+  });
+
+  // Client-Side Pagination controls
+  on("prev-page-btn", "click", () => {
+    if (currentPage > 1) {
+      currentPage--;
+      renderAssetList();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  });
+
+  on("next-page-btn", "click", () => {
+    // Dynamically check total filtered assets to cap the next page action
+    const filteredCount = assets.filter(asset => {
+      let categoryMatch = (activeCategory === "All") || (activeCategory === asset.category);
+      let statusMatch = (activeStatus === "All") || (activeStatus === asset.status);
+      const terms = searchQuery.toLowerCase().trim().split(/\s+/).filter(t => t.length > 0);
+      const searchMatch = terms.every(term => {
+        return (asset.id || "").toLowerCase().includes(term) ||
+               (asset.name || "").toLowerCase().includes(term) ||
+               (asset.owner || "").toLowerCase().includes(term) ||
+               (asset.category || "").toLowerCase().includes(term) ||
+               (asset.condition || "").toLowerCase().includes(term);
+      });
+      return categoryMatch && statusMatch && searchMatch;
+    }).length;
+
+    const totalPages = Math.ceil(filteredCount / assetsPerPage);
+    if (currentPage < totalPages) {
+      currentPage++;
+      renderAssetList();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   });
 
   // Add Asset
@@ -1664,6 +1751,7 @@ function setupEventListeners() {
     if (domainMatch) {
        const sub = domainMatch[1].toLowerCase();
        if (!["jira", "admin", "id", "assets"].includes(sub)) {
+         localStorage.setItem("assetGuard_subdomain", sub);
          const cloudInput = document.getElementById("api-cloud-id");
          if (cloudInput) cloudInput.value = clean(sub);
          apiConfig.cloudId = sub;
