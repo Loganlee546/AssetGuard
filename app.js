@@ -663,7 +663,7 @@ async function syncWithAtlassian() {
 
   for (let i = 0; i < paths.length; i++) {
     let pageStart = 0;
-    const pageLimit = 25; // Align exactly with Atlassian's default 25 page-size!
+    const pageLimit = 100; // Boost page size to 100 to reduce network roundtrips by 4x!
     let allValuesForPath = [];
     let pathSuccess = false;
     let hasMore = true;
@@ -701,6 +701,9 @@ async function syncWithAtlassian() {
           const data = await response.json();
           if (data && data.values && data.values.length > 0) {
             allValuesForPath = allValuesForPath.concat(data.values);
+            
+            // Provide active, real-time download count in the UI so they know it is busy downloading
+            updateConnectionUI("syncing", `Syncing: Loaded ${allValuesForPath.length} assets...`);
             
             // Advance start offset by the actual number of assets returned
             pageStart += data.values.length;
