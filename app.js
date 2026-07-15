@@ -623,11 +623,9 @@ async function syncWithAtlassian() {
         showToast("Workspace ID resolved automatically!", "success");
       }
     } catch (err) {
-      console.error("Workspace ID resolution failed:", err);
-      const errMsg = `Resolution failed: ${err.message}`;
-      updateConnectionUI("error", errMsg);
-      showToast(t("notif_sync_error").replace("{error}", errMsg), "error");
-      return;
+      console.warn("Workspace ID resolution bypassed, continuing with Schema ID fallback:", err.message);
+      // Do NOT abort here! Gracefully proceed to query fallback paths using the Schema ID (e.g. 3)
+      showToast("Workspace UUID resolve bypassed. Trying fallback paths...", "info");
     }
   }
 
