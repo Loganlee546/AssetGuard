@@ -445,6 +445,16 @@
             <label data-i18n="api_token">API Token</label>
             <input type="password" id="api-token" class="form-input" placeholder="Enter your API Token" required>
           </div>
+          <div class="form-group">
+            <label>Maximum Sync Limit</label>
+            <select id="api-sync-limit" class="form-select">
+              <option value="50">50 assets (Fastest)</option>
+              <option value="100" selected>100 assets (Recommended)</option>
+              <option value="200">200 assets</option>
+              <option value="500">500 assets</option>
+              <option value="99999">Unlimited (Slower)</option>
+            </select>
+          </div>
           <div class="settings-group" style="margin-top: 16px; background: var(--bg-secondary); padding: 16px; border-radius: 12px; border: 1px solid var(--accent-blue);">
             <label data-i18n="label_magic_setup" style="color: var(--accent-blue); font-weight: bold;">✨ Magic Setup</label>
             <input type="text" id="api-magic-url" class="form-input" placeholder="Paste Atlassian URL here to auto-fill IDs..." style="margin-top: 8px;">

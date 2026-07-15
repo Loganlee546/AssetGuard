@@ -27,7 +27,8 @@ let apiConfig = {
   cloudId: localStorage.getItem("assetGuard_cloud_id") || "",
   workspaceId: localStorage.getItem("assetGuard_workspace_id") || "",
   email: sessionStorage.getItem("assetGuard_email") || "",
-  token: sessionStorage.getItem("assetGuard_token") || ""
+  token: sessionStorage.getItem("assetGuard_token") || "",
+  syncLimit: parseInt(localStorage.getItem("assetGuard_sync_limit")) || 100
 };
 let atlassianBaseUrl = sessionStorage.getItem("assetGuard_base_url") || "";
 
@@ -39,6 +40,7 @@ function saveState() {
   // Save non-confidential routing IDs persistently to bypass slow auto-resolution hops
   localStorage.setItem("assetGuard_cloud_id", apiConfig.cloudId);
   localStorage.setItem("assetGuard_workspace_id", apiConfig.workspaceId);
+  localStorage.setItem("assetGuard_sync_limit", apiConfig.syncLimit);
   
   // Save highly-confidential credentials in temporary session storage
   sessionStorage.setItem("assetGuard_email", apiConfig.email);
@@ -710,8 +712,12 @@ async function syncWithAtlassian() {
             // Advance start offset by the actual number of assets returned
             pageStart += data.values.length;
             
-            // Check if we retrieved everything
-            if (data.totalFilterCount !== undefined) {
+            // Check if we retrieved everything or reached our dynamic safety sync limit
+            const maxSyncLimit = apiConfig.syncLimit || 100;
+            if (allValuesForPath.length >= maxSyncLimit) {
+              console.log(`Reached safety sync limit of ${maxSyncLimit} assets.`);
+              hasMore = false;
+            } else if (data.totalFilterCount !== undefined) {
               if (allValuesForPath.length >= data.totalFilterCount) {
                 hasMore = false;
               }
@@ -1893,7 +1899,8 @@ function setupEventListeners() {
       cloudId: document.getElementById("api-cloud-id").value.trim(),
       workspaceId: document.getElementById("api-workspace-id").value.trim(),
       email: document.getElementById("api-email").value.trim(),
-      token: document.getElementById("api-token").value.trim()
+      token: document.getElementById("api-token").value.trim(),
+      syncLimit: parseInt(document.getElementById("api-sync-limit").value) || 100
     };
     saveState();
     
@@ -1911,7 +1918,7 @@ function setupEventListeners() {
 
   on("clear-config-btn", "click", () => {
     if (confirm(t("confirm_clear_all"))) { 
-      apiConfig = { cloudId: "", workspaceId: "", email: "", token: "" };
+      apiConfig = { cloudId: "", workspaceId: "", email: "", token: "", syncLimit: 100 };
       saveState();
       localStorage.setItem("assetGuard_last_sync_status", "unconfigured");
       localStorage.setItem("assetGuard_last_sync_error", "");
@@ -1920,6 +1927,7 @@ function setupEventListeners() {
       document.getElementById("api-workspace-id").value = "";
       document.getElementById("api-email").value = "";
       document.getElementById("api-token").value = "";
+      document.getElementById("api-sync-limit").value = "100";
       
       const assistant = document.getElementById("magic-setup-assistant");
       if (assistant) assistant.style.display = "none";
@@ -2381,6 +2389,7 @@ function openModal(modalId) {
       document.getElementById("api-workspace-id").value = apiConfig.workspaceId || "";
       document.getElementById("api-email").value = apiConfig.email || "";
       document.getElementById("api-token").value = apiConfig.token || "";
+      document.getElementById("api-sync-limit").value = apiConfig.syncLimit || "100";
       
       // Determine initial status of connection dashboard
       if (!apiConfig.cloudId || !apiConfig.workspaceId || !apiConfig.email || !apiConfig.token) {
