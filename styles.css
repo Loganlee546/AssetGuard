@@ -1051,4 +1051,34 @@ main {
   color: #F87168;
 }
 
+/* Premium Table View Styles */
+.premium-table th {
+  border-bottom: 2px solid var(--border-color);
+}
+.premium-table tr {
+  transition: background-color 0.2s;
+}
+.premium-table tr.table-row-hover:hover {
+  background-color: rgba(9, 30, 66, 0.04);
+}
+[data-theme="dark"] .premium-table tr.table-row-hover:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+.view-toggle-container button {
+  transition: all 0.2s;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.view-toggle-container button:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+.view-toggle-container button.active {
+  background-color: var(--accent-blue) !important;
+  border-color: var(--accent-blue) !important;
+  color: white !important;
+}
+
 

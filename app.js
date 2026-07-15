@@ -947,15 +947,56 @@ function renderAssetList() {
     counterEl.textContent = t("showing_results", { count: filtered.length, total: assets.length });
   }
 
+  const viewMode = localStorage.getItem("assetGuard_view_mode") || "grid";
+  const tableContainer = document.getElementById("asset-list-table-container");
+  const tableBody = document.getElementById("asset-list-table-body");
   const emptyState = document.getElementById("empty-state");
+
   if (filtered.length === 0) {
     if (emptyState) emptyState.style.display = "block";
     grid.style.display = "none";
+    if (tableContainer) tableContainer.style.display = "none";
     return;
   } else {
     if (emptyState) emptyState.style.display = "none";
-    grid.style.display = "grid";
   }
+
+  if (viewMode === "table") {
+    grid.style.display = "none";
+    if (tableContainer) tableContainer.style.display = "block";
+    if (tableBody) {
+      tableBody.innerHTML = "";
+      filtered.forEach((asset, index) => {
+        const row = document.createElement("tr");
+        row.style.borderBottom = "1px solid var(--border-color)";
+        row.style.cursor = "pointer";
+        row.className = "table-row-hover";
+        row.onclick = () => openDetailsModal(asset.id);
+        
+        let statusClass = asset.status.toLowerCase().replace(" ", "-");
+        let statusKey = `status_${asset.status.toLowerCase().replace(" ", "_")}`;
+        
+        row.innerHTML = `
+          <td style="padding: 14px 16px; font-weight: 600; color: var(--accent-blue);">${escapeHTML(asset.id)}</td>
+          <td style="padding: 14px 16px; font-weight: 500;">${escapeHTML(asset.name)}</td>
+          <td style="padding: 14px 16px; color: var(--text-secondary);">${t(asset.category.toLowerCase().replace(/[-\s]+/g, "_"))}</td>
+          <td style="padding: 14px 16px; font-family: monospace; color: var(--text-muted);">${escapeHTML(asset.serial || "---")}</td>
+          <td style="padding: 14px 16px;">${asset.owner ? escapeHTML(asset.owner) : '<span style="color: var(--text-muted);">---</span>'}</td>
+          <td style="padding: 14px 16px;"><span class="status-badge ${statusClass}" style="display: inline-block; padding: 4px 10px; font-size: 11px; border-radius: 12px;">${t(statusKey)}</span></td>
+          <td style="padding: 14px 16px; text-align: center;">
+            <button class="btn btn-secondary btn-sm" style="padding: 4px 10px; font-size: 11px; border-radius: 6px;" onclick="event.stopPropagation(); openDetailsModal('${asset.id}')">
+              <i class="fa-solid fa-eye"></i> ${t("details") || "View"}
+            </button>
+          </td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+    return;
+  }
+
+  grid.style.display = "grid";
+  if (tableContainer) tableContainer.style.display = "none";
 
   filtered.forEach((asset, index) => {
     const card = document.createElement("div");
@@ -1541,6 +1582,34 @@ function setupEventListeners() {
     renderAssetList();
   });
 
+  // View Toggle event listeners
+  const viewGridBtn = document.getElementById("view-grid-btn");
+  const viewTableBtn = document.getElementById("view-table-btn");
+  if (viewGridBtn && viewTableBtn) {
+    const activeView = localStorage.getItem("assetGuard_view_mode") || "grid";
+    if (activeView === "table") {
+      viewGridBtn.classList.remove("active");
+      viewTableBtn.classList.add("active");
+    } else {
+      viewGridBtn.classList.add("active");
+      viewTableBtn.classList.remove("active");
+    }
+
+    viewGridBtn.addEventListener("click", () => {
+      localStorage.setItem("assetGuard_view_mode", "grid");
+      viewGridBtn.classList.add("active");
+      viewTableBtn.classList.remove("active");
+      renderAssetList();
+    });
+
+    viewTableBtn.addEventListener("click", () => {
+      localStorage.setItem("assetGuard_view_mode", "table");
+      viewGridBtn.classList.remove("active");
+      viewTableBtn.classList.add("active");
+      renderAssetList();
+    });
+  }
+
   // Add Asset
   on("add-asset-btn", "click", () => {
     openModal("add-asset-modal");
@@ -1552,9 +1621,6 @@ function setupEventListeners() {
 
   // Sync Atlassian
   on("sync-atlassian-btn", "click", () => {
-    syncWithAtlassian();
-  });
-  on("main-sync-atlassian-btn", "click", () => {
     syncWithAtlassian();
   });
 

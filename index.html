@@ -54,9 +54,6 @@
           <button id="add-asset-btn" class="btn btn-primary">
             <i class="fa-solid fa-plus"></i> <span data-i18n="add_asset">Add Asset</span>
           </button>
-          <button id="main-sync-atlassian-btn" class="btn btn-secondary" style="background-color: var(--accent-blue); color: white; border: 1px solid var(--accent-blue);">
-            <i class="fa-solid fa-rotate"></i> <span data-i18n="sync_now">Sync Now</span>
-          </button>
           <button id="scan-qr-btn" class="btn btn-secondary">
             <i class="fa-solid fa-qrcode"></i> <span data-i18n="scan_qr">Scan QR Code</span>
           </button>
@@ -120,9 +117,38 @@
       <button class="filter-chip" data-status="Not Working" data-i18n="status_not_working">Broken</button>
     </div>
 
-    <div id="results-counter" style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;"></div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+      <div id="results-counter" style="font-size: 12px; color: var(--text-muted);"></div>
+      <div class="view-toggle-container" style="display: flex; gap: 8px;">
+        <button id="view-grid-btn" class="btn btn-secondary btn-sm active" style="padding: 6px 12px; border-radius: 20px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+          <i class="fa-solid fa-grip"></i> <span data-i18n="view_grid">Grid</span>
+        </button>
+        <button id="view-table-btn" class="btn btn-secondary btn-sm" style="padding: 6px 12px; border-radius: 20px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+          <i class="fa-solid fa-table-list"></i> <span data-i18n="view_table">Table</span>
+        </button>
+      </div>
+    </div>
 
     <div class="asset-grid" id="asset-list-grid"></div>
+
+    <div class="asset-table-container" id="asset-list-table-container" style="display: none; width: 100%; overflow-x: auto; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); margin-bottom: 24px;">
+      <table class="premium-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; min-width: 600px;">
+        <thead>
+          <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.01);">
+            <th style="padding: 14px 16px; font-weight: 600; color: var(--text-primary);">ID</th>
+            <th style="padding: 14px 16px; font-weight: 600; color: var(--text-primary);">Name / Model</th>
+            <th style="padding: 14px 16px; font-weight: 600; color: var(--text-primary);">Category</th>
+            <th style="padding: 14px 16px; font-weight: 600; color: var(--text-primary);">Serial Number</th>
+            <th style="padding: 14px 16px; font-weight: 600; color: var(--text-primary);">Owner</th>
+            <th style="padding: 14px 16px; font-weight: 600; color: var(--text-primary);">Status</th>
+            <th style="padding: 14px 16px; font-weight: 600; color: var(--text-primary); text-align: center;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="asset-list-table-body">
+          <!-- Rows injected dynamically by app.js -->
+        </tbody>
+      </table>
+    </div>
 
     <div id="empty-state" style="display: none;">
       <i class="fa-solid fa-box-open"></i>
