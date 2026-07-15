@@ -322,10 +322,11 @@ async function resolveCloudId(subdomain) {
   }
   headers["Accept"] = "application/json";
 
+  const tenantInfoUrl = `https://${subdomain}.atlassian.net/_edge/tenant_info`;
   const serverInfoUrl = `https://${subdomain}.atlassian.net/rest/api/3/serverInfo`;
   const metadataUrl = `https://${subdomain}.atlassian.net/metadata/properties/id`;
 
-  const urlsToTry = [serverInfoUrl, metadataUrl];
+  const urlsToTry = [tenantInfoUrl, serverInfoUrl, metadataUrl];
 
   for (const url of urlsToTry) {
     try {
@@ -333,6 +334,10 @@ async function resolveCloudId(subdomain) {
       if (res.ok) {
         const data = await res.json();
         if (data) {
+          if (data.cloudId) {
+            console.log("Resolved Cloud ID from tenant_info successfully!");
+            return data.cloudId;
+          }
           if (data.baseUrl && data.baseUrl.includes("/ex/jira/")) {
             const match = data.baseUrl.match(/\/ex\/jira\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
             if (match) {
@@ -356,6 +361,10 @@ async function resolveCloudId(subdomain) {
           if (proxyData && proxyData.contents) {
             const parsed = JSON.parse(proxyData.contents);
             if (parsed) {
+              if (parsed.cloudId) {
+                console.log("Resolved Cloud ID via proxy from tenant_info successfully!");
+                return parsed.cloudId;
+              }
               if (parsed.baseUrl && parsed.baseUrl.includes("/ex/jira/")) {
                 const match = parsed.baseUrl.match(/\/ex\/jira\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
                 if (match) {
