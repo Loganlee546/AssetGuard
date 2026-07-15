@@ -606,16 +606,27 @@ async function syncWithAtlassian() {
 
   // Define the common Atlassian Assets API path variants using final UUIDs
   const paths = [];
+  
+  // 1. Prioritize known working base URL if we have synced successfully before
+  if (atlassianBaseUrl) {
+    const verifiedPath = `${atlassianBaseUrl}/object/aql`;
+    paths.push(verifiedPath);
+  }
+
   const originalSubdomainText = !apiConfig.cloudId.includes("-") ? apiConfig.cloudId : null;
   
   if (originalSubdomainText) {
-    paths.push(`https://${originalSubdomainText}.atlassian.net/gateway/api/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`);
+    const p = `https://${originalSubdomainText}.atlassian.net/gateway/api/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`;
+    if (!paths.includes(p)) paths.push(p);
   }
   if (targetCloudId.includes("-")) {
-    paths.push(`https://api.atlassian.com/ex/jira/${targetCloudId}/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`);
-    paths.push(`https://api.atlassian.com/ex/jira/${targetCloudId}/assets/workspace/${targetWorkspaceId}/v1/object/aql`);
+    const p1 = `https://api.atlassian.com/ex/jira/${targetCloudId}/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`;
+    const p2 = `https://api.atlassian.com/ex/jira/${targetCloudId}/assets/workspace/${targetWorkspaceId}/v1/object/aql`;
+    if (!paths.includes(p1)) paths.push(p1);
+    if (!paths.includes(p2)) paths.push(p2);
   }
-  paths.push(`https://api.atlassian.com/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`);
+  const pFallback = `https://api.atlassian.com/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`;
+  if (!paths.includes(pFallback)) paths.push(pFallback);
 
   let success = false;
   let lastError = null;
@@ -632,10 +643,15 @@ async function syncWithAtlassian() {
       const currentUrl = `${paths[i]}?start=${pageStart}&limit=${pageLimit}&resultsPerPage=${pageLimit}&cb=${Date.now()}`;
       console.log(`Syncing page starting at ${pageStart}...`, currentUrl);
 
+      // Create a 5-second network timeout controller to prevent syncing hangs
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       try {
         const auth = btoa(`${apiConfig.email}:${apiConfig.token}`);
         const response = await fetch(currentUrl, {
           method: "POST",
+          signal: controller.signal,
           headers: {
             "Authorization": `Basic ${auth}`,
             "Content-Type": "application/json",
@@ -649,6 +665,8 @@ async function syncWithAtlassian() {
             resultsPerPage: pageLimit
           })
         });
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const data = await response.json();
@@ -759,7 +777,7 @@ function mapAtlassianObject(obj) {
     id: obj.label || obj.id,
     name: obj.name || obj.label || obj.id,
     model: getAttr("Model") || obj.name || "Standard Model",
-    category: getAttr("Category") || "IT Asset",
+    category: (obj.objectType && obj.objectType.name) ? obj.objectType.name : (getAttr("Category") || "IT Asset"),
     status: getAttr("Status") || "Open",
     owner: getAttr("Owner") || "",
     condition: "Good",
