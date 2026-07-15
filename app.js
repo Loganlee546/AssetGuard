@@ -1556,9 +1556,8 @@ function setupEventListeners() {
     openModal("settings-modal");
   });
 
-  // Magic URL Sniffer (Global Paste Listener for Settings)
-  on("settings-modal", "paste", (e) => {
-    const url = (e.clipboardData || window.clipboardData).getData('text').trim();
+  // Magic URL Sniffer (Unified Processor)
+  function processMagicUrl(url) {
     if (!url || (!url.includes("atlassian.net") && !url.includes("api.atlassian.com"))) return; 
     
     // Helper to clean IDs
@@ -1599,12 +1598,14 @@ function setupEventListeners() {
 
       let updatedAny = false;
       if (directCloudId) {
-        document.getElementById("api-cloud-id").value = directCloudId;
+        const cloudInput = document.getElementById("api-cloud-id");
+        if (cloudInput) cloudInput.value = directCloudId;
         apiConfig.cloudId = directCloudId;
         updatedAny = true;
       }
       if (directWorkspaceId) {
-        document.getElementById("api-workspace-id").value = directWorkspaceId;
+        const workspaceInput = document.getElementById("api-workspace-id");
+        if (workspaceInput) workspaceInput.value = directWorkspaceId;
         apiConfig.workspaceId = directWorkspaceId;
         updatedAny = true;
       }
@@ -1644,7 +1645,8 @@ function setupEventListeners() {
 
     // Write Workspace ID to input
     if (workspaceId) {
-      document.getElementById("api-workspace-id").value = workspaceId;
+      const workspaceInput = document.getElementById("api-workspace-id");
+      if (workspaceInput) workspaceInput.value = workspaceId;
       apiConfig.workspaceId = workspaceId;
     }
 
@@ -1653,7 +1655,8 @@ function setupEventListeners() {
     if (domainMatch) {
        const sub = domainMatch[1].toLowerCase();
        if (!["jira", "admin", "id", "assets"].includes(sub)) {
-         document.getElementById("api-cloud-id").value = clean(sub);
+         const cloudInput = document.getElementById("api-cloud-id");
+         if (cloudInput) cloudInput.value = clean(sub);
          apiConfig.cloudId = sub;
          // Render the customized Method B Assistant with direct URLs for their subdomain!
          const assistant = document.getElementById("magic-setup-assistant");
@@ -1677,7 +1680,8 @@ function setupEventListeners() {
          resolveCloudId(sub)
            .then(resolvedCloud => {
              if (resolvedCloud) {
-               document.getElementById("api-cloud-id").value = resolvedCloud;
+               const cloudInput = document.getElementById("api-cloud-id");
+               if (cloudInput) cloudInput.value = resolvedCloud;
                apiConfig.cloudId = resolvedCloud;
                saveState();
                showToast("Cloud ID resolved successfully!", "success");
@@ -1688,8 +1692,8 @@ function setupEventListeners() {
                }
 
                // Attempt to resolve Workspace ID automatically too if credentials are input!
-               const emailInput = document.getElementById("api-email").value.trim();
-               const tokenInput = document.getElementById("api-token").value.trim();
+               const emailInput = document.getElementById("api-email") ? document.getElementById("api-email").value.trim() : "";
+               const tokenInput = document.getElementById("api-token") ? document.getElementById("api-token").value.trim() : "";
                if (emailInput && tokenInput && workspaceId && !isValidUUID(workspaceId)) {
                  showToast("Resolving Workspace ID...", "info");
                  apiConfig.email = emailInput;
@@ -1702,7 +1706,8 @@ function setupEventListeners() {
                  resolveWorkspaceId(resolvedCloud, sub)
                    .then(resolvedWorkspace => {
                      if (resolvedWorkspace) {
-                       document.getElementById("api-workspace-id").value = resolvedWorkspace;
+                       const workspaceInput = document.getElementById("api-workspace-id");
+                       if (workspaceInput) workspaceInput.value = resolvedWorkspace;
                        apiConfig.workspaceId = resolvedWorkspace;
                        saveState();
                        showToast("Workspace ID resolved automatically!", "success");
@@ -1732,6 +1737,26 @@ function setupEventListeners() {
     }
     
     saveState();
+  }
+
+  // Bind the Magic Sniffer to both INPUT and PASTE events on the magic url box
+  on("api-magic-url", "input", (e) => {
+    processMagicUrl(e.target.value.trim());
+  });
+  on("api-magic-url", "paste", (e) => {
+    // Let clipboard capture populate the input box first, then process
+    setTimeout(() => {
+      const magicInput = document.getElementById("api-magic-url");
+      if (magicInput) {
+        processMagicUrl(magicInput.value.trim());
+      }
+    }, 50);
+  });
+
+  // Secondary catch-all fallback: Global Paste Listener for Settings Modal
+  on("settings-modal", "paste", (e) => {
+    const url = (e.clipboardData || window.clipboardData).getData('text').trim();
+    processMagicUrl(url);
   });
 
   on("people-directory-trigger-btn", "click", () => {
