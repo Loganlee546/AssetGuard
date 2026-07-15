@@ -642,17 +642,19 @@ async function syncWithAtlassian() {
     paths.push(verifiedPath);
   }
 
-  const originalSubdomainText = !apiConfig.cloudId.includes("-") ? apiConfig.cloudId : null;
-  
-  if (originalSubdomainText) {
-    const p = `https://${originalSubdomainText}.atlassian.net/gateway/api/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`;
-    if (!paths.includes(p)) paths.push(p);
-  }
-  if (targetCloudId.includes("-")) {
+  // 2. High-speed Official public API Gateway paths (using resolved UUIDs)
+  if (targetCloudId && targetCloudId.includes("-")) {
     const p1 = `https://api.atlassian.com/ex/jira/${targetCloudId}/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`;
     const p2 = `https://api.atlassian.com/ex/jira/${targetCloudId}/assets/workspace/${targetWorkspaceId}/v1/object/aql`;
     if (!paths.includes(p1)) paths.push(p1);
     if (!paths.includes(p2)) paths.push(p2);
+  }
+
+  // 3. Fallbacks (only if direct UUID paths fail)
+  const originalSubdomainText = !apiConfig.cloudId.includes("-") ? apiConfig.cloudId : null;
+  if (originalSubdomainText) {
+    const p = `https://${originalSubdomainText}.atlassian.net/gateway/api/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`;
+    if (!paths.includes(p)) paths.push(p);
   }
   const pFallback = `https://api.atlassian.com/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`;
   if (!paths.includes(pFallback)) paths.push(pFallback);
