@@ -16,10 +16,15 @@ let searchQuery = "";
 let isScannerStarting = false;
 let shouldStopScanner = false;
 let currentLanguage = localStorage.getItem("assetGuard_lang") || "en";
+// Clean up legacy pre-filled parameters from previous sessions
+if (localStorage.getItem("assetGuard_cloud_id") === "smm-sandbox") localStorage.removeItem("assetGuard_cloud_id");
+if (localStorage.getItem("assetGuard_workspace_id") === "3") localStorage.removeItem("assetGuard_workspace_id");
+if (sessionStorage.getItem("assetGuard_email") === "llee_smm@smm.com") sessionStorage.removeItem("assetGuard_email");
+
 let apiConfig = {
-  cloudId: localStorage.getItem("assetGuard_cloud_id") || "smm-sandbox",
-  workspaceId: localStorage.getItem("assetGuard_workspace_id") || "3",
-  email: sessionStorage.getItem("assetGuard_email") || "llee_smm@smm.com",
+  cloudId: localStorage.getItem("assetGuard_cloud_id") || "",
+  workspaceId: localStorage.getItem("assetGuard_workspace_id") || "",
+  email: sessionStorage.getItem("assetGuard_email") || "",
   token: sessionStorage.getItem("assetGuard_token") || ""
 };
 let atlassianBaseUrl = sessionStorage.getItem("assetGuard_base_url") || "";
