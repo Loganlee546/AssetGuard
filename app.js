@@ -16,19 +16,34 @@ let searchQuery = "";
 let isScannerStarting = false;
 let shouldStopScanner = false;
 let currentLanguage = localStorage.getItem("assetGuard_lang") || "en";
-let apiConfig = JSON.parse(localStorage.getItem("assetGuard_api_config")) || {};
-if (!apiConfig.cloudId) apiConfig.cloudId = "smm-sandbox";
-if (!apiConfig.workspaceId) apiConfig.workspaceId = "3";
-if (!apiConfig.email) apiConfig.email = "llee_smm@smm.com";
-if (!apiConfig.token) apiConfig.token = "";
-let atlassianBaseUrl = localStorage.getItem("assetGuard_base_url") || "";
+let apiConfig = {
+  cloudId: localStorage.getItem("assetGuard_cloud_id") || "smm-sandbox",
+  workspaceId: localStorage.getItem("assetGuard_workspace_id") || "3",
+  email: sessionStorage.getItem("assetGuard_email") || "llee_smm@smm.com",
+  token: sessionStorage.getItem("assetGuard_token") || ""
+};
+let atlassianBaseUrl = sessionStorage.getItem("assetGuard_base_url") || "";
 
 // State persistence
 function saveState() {
   localStorage.setItem("assetGuard_assets", JSON.stringify(assets));
   localStorage.setItem("assetGuard_lang", currentLanguage);
-  localStorage.setItem("assetGuard_api_config", JSON.stringify(apiConfig));
+  
+  // Save non-confidential routing IDs persistently to bypass slow auto-resolution hops
+  localStorage.setItem("assetGuard_cloud_id", apiConfig.cloudId);
+  localStorage.setItem("assetGuard_workspace_id", apiConfig.workspaceId);
+  
+  // Save highly-confidential credentials in temporary session storage
+  sessionStorage.setItem("assetGuard_email", apiConfig.email);
+  sessionStorage.setItem("assetGuard_token", apiConfig.token);
 }
+
+// Securely wipe ONLY confidential credentials on tab close or page unload
+window.addEventListener("beforeunload", () => {
+  sessionStorage.removeItem("assetGuard_email");
+  sessionStorage.removeItem("assetGuard_token");
+  sessionStorage.removeItem("assetGuard_base_url");
+});
 
 // Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
@@ -712,7 +727,7 @@ async function syncWithAtlassian() {
 
       // Save working base URL and dynamic mapping
       const currentBase = paths[i].replace("/object/aql", "");
-      localStorage.setItem("assetGuard_base_url", currentBase);
+      sessionStorage.setItem("assetGuard_base_url", currentBase);
       atlassianBaseUrl = currentBase;
 
       // Build attribute ID mapping dynamically from the synced assets' attributes
