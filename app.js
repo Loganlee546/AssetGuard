@@ -1722,10 +1722,21 @@ function setupEventListeners() {
                }
              } else {
                console.warn("Could not resolve Cloud ID to a UUID. Subdomain set as fallback.");
-               showToast("CORS block or private sandbox. Please turn on 'Allow CORS' extension or use DevTools link!", "warning");
+               const emailInput = document.getElementById("api-email") ? document.getElementById("api-email").value.trim() : "";
+               const tokenInput = document.getElementById("api-token") ? document.getElementById("api-token").value.trim() : "";
+               
+               let warningMsg = "CORS block or private sandbox. Please turn on 'Allow CORS' extension or use DevTools link!";
+               let statusHtml = `<i class="fa-solid fa-triangle-exclamation" style="color: var(--status-warning);"></i> Run with 'Allow CORS' turned ON to resolve UUIDs!`;
+               
+               if (!emailInput || !tokenInput) {
+                 warningMsg = "⚠️ Please enter your Atlassian Email & API Token FIRST so we can securely login to your private sandbox!";
+                 statusHtml = `<i class="fa-solid fa-key" style="color: var(--status-warning);"></i> Please enter your Email & API Token first!`;
+               }
+               
+               showToast(warningMsg, "warning");
                const statusStep = document.getElementById("magic-status-step");
                if (statusStep) {
-                 statusStep.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="color: var(--status-warning);"></i> Run with 'Allow CORS' turned ON to resolve UUIDs!`;
+                 statusStep.innerHTML = statusHtml;
                }
              }
            })
