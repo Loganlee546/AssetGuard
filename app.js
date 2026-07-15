@@ -1553,6 +1553,8 @@ function setupEventListeners() {
   // Sync Atlassian
   on("sync-atlassian-btn", "click", () => {
     syncWithAtlassian();
+  });
+
   // Settings
   on("settings-btn", "click", () => {
     const assistant = document.getElementById("magic-setup-assistant");
