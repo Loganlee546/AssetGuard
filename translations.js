@@ -34,8 +34,6 @@ const translations = {
         actions: "Actions",
         details: "Details",
         view_details: "View Details",
-        view_grid: "Grid",
-        view_table: "Table",
         
         // Categories
         all_categories: "All Categories",
@@ -224,8 +222,6 @@ const translations = {
         actions: "Acciones",
         details: "Detalles",
         view_details: "Ver Detalles",
-        view_grid: "Cuadrícula",
-        view_table: "Tabla",
         
         // Categories
         all_categories: "Todas las Categorías",
