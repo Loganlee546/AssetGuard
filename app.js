@@ -635,9 +635,18 @@ async function syncWithAtlassian() {
         showToast("Workspace ID resolved automatically!", "success");
       }
     } catch (err) {
-      console.warn("Workspace ID resolution bypassed, continuing with Schema ID fallback:", err.message);
-      // Do NOT abort here! Gracefully proceed to query fallback paths using the Schema ID (e.g. 3)
-      showToast("Workspace UUID resolve bypassed. Trying fallback paths...", "info");
+      console.error("Workspace ID resolution failed:", err.message);
+      let diagMsg = "Could not resolve Schema ID to Atlassian Workspace UUID.";
+      if (err.message.includes("401") || err.message.includes("unauthorized") || err.message.includes("Unauthorized")) {
+        diagMsg = "Auth failed (HTTP 401). Please verify your Atlassian Email and API Token in settings!";
+      } else if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError") || err.message.includes("abort")) {
+        diagMsg = "Network blocked! Please make sure your Chrome 'Allow CORS' extension is turned ON!";
+      } else {
+        diagMsg = `Resolution failed: ${err.message}. Try pasting your long Workspace UUID directly!`;
+      }
+      updateConnectionUI("error", diagMsg);
+      showToast(diagMsg, "error");
+      return; // Stop the sync immediately to prevent misleading 404 dead link screens!
     }
   }
 
