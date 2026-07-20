@@ -1691,8 +1691,8 @@ function setupEventListeners() {
         directCloudId = cloudIdMatch[1];
       }
 
-      // 2. Try to find Workspace ID (following /workspace/)
-      const workspaceIdMatch = url.match(/\/workspace\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+      // 2. Try to find Workspace ID (following /workspace/ or /servicedesk/assets/ or /assets/)
+      const workspaceIdMatch = url.match(/\/(?:workspace|servicedesk\/assets|assets)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
       if (workspaceIdMatch) {
         directWorkspaceId = workspaceIdMatch[1];
       }
@@ -1705,7 +1705,7 @@ function setupEventListeners() {
         // If there's only 1 UUID and we don't have structural path matching, try to see where it fits
         if (url.includes("/ex/jira/")) {
           directCloudId = allUUIDs[0];
-        } else if (url.includes("/workspace/")) {
+        } else if (url.includes("/workspace/") || url.includes("/servicedesk/assets/") || url.includes("/assets/")) {
           directWorkspaceId = allUUIDs[0];
         }
       }
