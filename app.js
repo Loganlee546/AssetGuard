@@ -59,14 +59,29 @@ document.addEventListener("DOMContentLoaded", () => {
   if (savedAssets) {
     try {
       assets = JSON.parse(savedAssets);
+      if (!assets || assets.length === 0) {
+        assets = seeds;
+        saveState();
+      }
     } catch (e) {
       console.error("Failed to parse local storage assets, resetting.", e);
       assets = seeds;
+      saveState();
     }
   } else {
     // First time load or storage cleared: use seeds
     assets = seeds;
     saveState();
+  }
+
+  // Guarantee that at least one Monitor exists so the Monitors tab displays our newly added monitor
+  const hasMonitor = assets.some(a => a.category === "Monitor");
+  if (!hasMonitor) {
+    const defaultMonitor = seeds.find(s => s.category === "Monitor");
+    if (defaultMonitor) {
+      assets.push(defaultMonitor);
+      saveState();
+    }
   }
 
   // Initial Render

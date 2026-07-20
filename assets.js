@@ -1,5 +1,18 @@
 window.itAssetSeeds = [
   {
+    id: "smm-mon-24",
+    name: 'Dell UltraSharp 27" 4K USB-C Hub Monitor',
+    category: "Monitor",
+    status: "Open",
+    owner: "",
+    location: "Main HQ",
+    condition: "New",
+    serialNumber: "CN-0U2723QE-1024",
+    acquisitionDate: "2026-06-20",
+    specs: { cpu: "3840x2160 (4K)", ram: "60Hz IPS Black", storage: "90W Power Delivery", os: "USB-C, DisplayPort, HDMI" },
+    history: [{ timestamp: new Date().toISOString(), typeKey: "history_type_created", descKey: "history_added", params: {} }]
+  },
+  {
     id: "smm2379",
     name: "Lenovo ThinkPad X1 Carbon",
     category: "Laptop",
