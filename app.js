@@ -580,7 +580,14 @@ async function syncWithAtlassian() {
     return;
   }
 
-
+  // Prevent common user copy-paste errors where Cloud ID and Workspace ID are identical UUIDs
+  if (apiConfig.cloudId.trim().toLowerCase() === apiConfig.workspaceId.trim().toLowerCase()) {
+    const errorMsg = "Configuration Error: Your Cloud ID and Workspace ID are identical! They must be different UUIDs. Check Assets URL for Workspace ID.";
+    updateConnectionUI("error", errorMsg);
+    showToast(errorMsg, "error");
+    openModal("settings-modal");
+    return;
+  }
 
   // Compile the list of all historic type IDs specified by the user to merge all their assets
   const allTypeIds = [
@@ -2432,21 +2439,27 @@ function openModal(modalId) {
       document.getElementById("api-token").value = apiConfig.token || "";
       document.getElementById("api-sync-limit").value = apiConfig.syncLimit || "100";
 
-      // Function to dynamically update the help link
-      const updateHelpLink = () => {
+      // Function to dynamically update the help links
+      const updateHelpLinks = () => {
+        let subdomain = cloudIdInput.value.trim() || "smm-sandbox";
+        if (subdomain.includes("-")) {
+          subdomain = "smm-sandbox"; // Fallback to their known subdomain if they entered a resolved UUID
+        }
+        
         const workspaceLink = document.getElementById("find-workspace-id-link");
         if (workspaceLink) {
-          let subdomain = cloudIdInput.value.trim() || "smm-sandbox";
-          if (subdomain.includes("-")) {
-            subdomain = "smm-sandbox"; // Fallback to their known subdomain if they entered a resolved UUID
-          }
           workspaceLink.href = `https://${subdomain}.atlassian.net/rest/servicedeskapi/assets/workspace`;
+        }
+
+        const cloudLink = document.getElementById("find-cloud-id-link");
+        if (cloudLink) {
+          cloudLink.href = `https://${subdomain}.atlassian.net/_edge/tenant_info`;
         }
       };
       
       // Initialize on modal open and watch for typing changes
-      updateHelpLink();
-      cloudIdInput.oninput = updateHelpLink;
+      updateHelpLinks();
+      cloudIdInput.oninput = updateHelpLinks;
       
       // Determine initial status of connection dashboard
       if (!apiConfig.cloudId || !apiConfig.workspaceId || !apiConfig.email || !apiConfig.token) {
