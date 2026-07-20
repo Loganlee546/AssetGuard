@@ -580,6 +580,15 @@ async function syncWithAtlassian() {
     return;
   }
 
+  // Prevent common user copy-paste errors where Cloud ID and Workspace ID are identical UUIDs
+  if (apiConfig.cloudId.trim().toLowerCase() === apiConfig.workspaceId.trim().toLowerCase()) {
+    const errorMsg = "Configuration Error: Your Cloud ID and Workspace ID are identical! They must be different UUIDs. Check Assets URL for Workspace ID.";
+    updateConnectionUI("error", errorMsg);
+    showToast(errorMsg, "error");
+    openModal("settings-modal");
+    return;
+  }
+
   // Compile the list of all historic type IDs specified by the user to merge all their assets
   const allTypeIds = [
     3, 14, 23, 24, 28, 35, 43, 45, 52, 53, 55, 57, 59, 61, 65, 68, 70, 74, 75, 76, 80, 
