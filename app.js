@@ -584,6 +584,18 @@ async function syncWithAtlassian() {
     return;
   }
 
+  // Compile the list of all historic type IDs specified by the user to merge all their assets
+  const allTypeIds = [
+    3, 14, 23, 24, 28, 35, 43, 45, 52, 53, 55, 57, 59, 61, 65, 68, 70, 74, 75, 76, 80, 
+    115, 138, 163, 164, 165, 169, 171, 172, 195, 197, 199, 202, 279
+  ];
+  const extractedTypeId = parseInt(localStorage.getItem("assetGuard_extracted_type_id")) || null;
+  if (extractedTypeId && !allTypeIds.includes(extractedTypeId)) {
+    allTypeIds.push(extractedTypeId);
+  }
+  const targetAqlQuery = `objectType IN (${allTypeIds.join(", ")})`;
+  console.log("Compiled multi-link targeted AQL query:", targetAqlQuery);
+
   updateConnectionUI("syncing", t("sync_loading"));
   showToast(t("sync_loading"), "info");
 
@@ -692,7 +704,7 @@ async function syncWithAtlassian() {
             "X-ExperimentalApi": "opt-in"
           },
           body: JSON.stringify({
-            qlQuery: "objectType != null",
+            qlQuery: targetAqlQuery,
             includeAttributes: true,
             start: pageStart,
             resultsPerPage: pageLimit
@@ -1750,6 +1762,16 @@ function setupEventListeners() {
       const workspaceInput = document.getElementById("api-workspace-id");
       if (workspaceInput) workspaceInput.value = workspaceId;
       apiConfig.workspaceId = workspaceId;
+    }
+
+    // Extract optional typeId from URL query string if present
+    const typeIdMatch = url.match(/[?&]typeId=(\d+)/i);
+    if (typeIdMatch) {
+      const extractedTypeId = parseInt(typeIdMatch[1]);
+      if (extractedTypeId) {
+        localStorage.setItem("assetGuard_extracted_type_id", extractedTypeId);
+        console.log("Extracted typeId from URL:", extractedTypeId);
+      }
     }
 
     // 2. Try to find Cloud ID / Subdomain
