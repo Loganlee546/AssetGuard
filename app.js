@@ -47,12 +47,8 @@ function saveState() {
   sessionStorage.setItem("assetGuard_token", apiConfig.token);
 }
 
-// Securely wipe ONLY confidential credentials on tab close or page unload
-window.addEventListener("beforeunload", () => {
-  sessionStorage.removeItem("assetGuard_email");
-  sessionStorage.removeItem("assetGuard_token");
-  sessionStorage.removeItem("assetGuard_base_url");
-});
+// Native sessionStorage is already automatically wiped by the browser when the tab or browser is closed.
+// Keeping sessionStorage intact on page refreshes ensures a smooth user experience!
 
 // Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
@@ -652,8 +648,19 @@ async function syncWithAtlassian() {
   
   // 1. Prioritize known working base URL if we have synced successfully before
   if (atlassianBaseUrl) {
-    const verifiedPath = `${atlassianBaseUrl}/object/aql`;
-    paths.push(verifiedPath);
+    // If targetWorkspaceId is a UUID but the cached base URL contains a legacy schema integer ID,
+    // or vice versa, discard the stale cached base URL to avoid 404 loops or slow timeouts!
+    const isTargetUuid = isValidUUID(targetWorkspaceId);
+    const cachedContainsUuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(atlassianBaseUrl);
+    
+    if (isTargetUuid === cachedContainsUuid) {
+      const verifiedPath = `${atlassianBaseUrl}/object/aql`;
+      paths.push(verifiedPath);
+    } else {
+      console.warn("Discarding stale cached base URL due to format mismatch:", atlassianBaseUrl);
+      sessionStorage.removeItem("assetGuard_base_url");
+      atlassianBaseUrl = "";
+    }
   }
 
   // 2. High-speed Official public API Gateway paths (using resolved UUIDs)
