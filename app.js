@@ -23,6 +23,9 @@ if (localStorage.getItem("assetGuard_cloud_id") === "smm-sandbox") localStorage.
 if (localStorage.getItem("assetGuard_workspace_id") === "3") localStorage.removeItem("assetGuard_workspace_id");
 if (sessionStorage.getItem("assetGuard_email") === "llee_smm@smm.com") sessionStorage.removeItem("assetGuard_email");
 
+let isOfflineMode = localStorage.getItem("assetGuard_offline_mode") === "true";
+let conflictStrategy = localStorage.getItem("assetGuard_conflict_strategy") || "remote_overwrite";
+
 let apiConfig = {
   cloudId: localStorage.getItem("assetGuard_cloud_id") || "",
   workspaceId: localStorage.getItem("assetGuard_workspace_id") || "",
@@ -36,6 +39,8 @@ let atlassianBaseUrl = sessionStorage.getItem("assetGuard_base_url") || "";
 function saveState() {
   localStorage.setItem("assetGuard_assets", JSON.stringify(assets));
   localStorage.setItem("assetGuard_lang", currentLanguage);
+  localStorage.setItem("assetGuard_offline_mode", isOfflineMode);
+  localStorage.setItem("assetGuard_conflict_strategy", conflictStrategy);
   
   // Save non-confidential routing IDs persistently to bypass slow auto-resolution hops
   localStorage.setItem("assetGuard_cloud_id", apiConfig.cloudId);
@@ -89,6 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renderAssetList();
   applyTranslations(currentLanguage);
   setupEventListeners();
+  toggleOfflineUI(isOfflineMode);
 });
 // Atlassian Connection Status Dashboard and Auto-Resolution Helpers
 function isValidUUID(str) {
@@ -144,6 +150,21 @@ function parseScannedContent(text) {
     console.log("QR parse: Not a JSON string", e);
   }
 
+  // 1.5. Special check: Try to extract Atlassian Assets IDs if it contains .atlassian.net
+  if (trimmed.includes(".atlassian.net")) {
+    try {
+      const urlObj = new URL(trimmed);
+      const objId = urlObj.searchParams.get("objectId") || urlObj.searchParams.get("selectedObjectId");
+      if (objId) {
+        result.id = "smm" + objId;
+        result.serial = trimmed;
+        return result;
+      }
+    } catch (e) {
+      console.log("QR parse: Atlassian URL parser error", e);
+    }
+  }
+
   // 2. Try URL query parameters
   if (trimmed.includes("=") || trimmed.includes("&")) {
     try {
@@ -153,19 +174,22 @@ function parseScannedContent(text) {
       }
       const params = new URLSearchParams(queryStr);
       
-      if (params.has("id")) result.id = params.get("id");
-      if (params.has("name")) result.name = params.get("name");
-      if (params.has("category")) result.category = params.get("category");
-      if (params.has("serial")) result.serial = params.get("serial");
-      if (params.has("serialNumber")) result.serial = params.get("serialNumber");
-      if (params.has("location")) result.location = params.get("location");
-      if (params.has("condition")) result.condition = params.get("condition");
-      if (params.has("cpu")) result.cpu = params.get("cpu");
-      if (params.has("ram")) result.ram = params.get("ram");
-      if (params.has("storage")) result.storage = params.get("storage");
-      if (params.has("os")) result.os = params.get("os");
+      let matchedAny = false;
+      if (params.has("id")) { result.id = params.get("id"); matchedAny = true; }
+      if (params.has("name")) { result.name = params.get("name"); matchedAny = true; }
+      if (params.has("category")) { result.category = params.get("category"); matchedAny = true; }
+      if (params.has("serial")) { result.serial = params.get("serial"); matchedAny = true; }
+      if (params.has("serialNumber")) { result.serial = params.get("serialNumber"); matchedAny = true; }
+      if (params.has("location")) { result.location = params.get("location"); matchedAny = true; }
+      if (params.has("condition")) { result.condition = params.get("condition"); matchedAny = true; }
+      if (params.has("cpu")) { result.cpu = params.get("cpu"); matchedAny = true; }
+      if (params.has("ram")) { result.ram = params.get("ram"); matchedAny = true; }
+      if (params.has("storage")) { result.storage = params.get("storage"); matchedAny = true; }
+      if (params.has("os")) { result.os = params.get("os"); matchedAny = true; }
       
-      return result;
+      if (matchedAny && result.id) {
+        return result;
+      }
     } catch (e) {
       console.log("QR parse: Not query parameters", e);
     }
@@ -251,10 +275,14 @@ function updateConnectionUI(status, detailsMsg = "") {
   badge.className = "connection-badge status-" + status;
 
   // Set translation/text
-  badge.textContent = t("conn_status_" + status);
+  if (status === "offline") {
+    badge.textContent = "Offline Mode";
+  } else {
+    badge.textContent = t("conn_status_" + status);
+  }
 
   // Persistence of connection state
-  if (status !== "syncing") {
+  if (status !== "syncing" && status !== "offline") {
     localStorage.setItem("assetGuard_last_sync_status", status);
     if (status === "connected") {
       const timeStr = new Date().toLocaleString();
@@ -266,7 +294,16 @@ function updateConnectionUI(status, detailsMsg = "") {
   }
 
   // Set details content
-  if (status === "unconfigured") {
+  if (status === "offline") {
+    details.innerHTML = `
+      <span style="color: var(--accent-purple); font-weight: 600; display: flex; align-items: center; gap: 6px;">
+        <i class="fa-solid fa-plane-slash"></i> Offline Sandbox Mode Active
+      </span>
+      <p style="margin-top: 4px; font-size: 11.5px; color: var(--text-secondary); line-height: 1.4;">
+        The system is running purely in local-storage mode. Live synchronization with Atlassian is disabled, and changes are confined to your browser database.
+      </p>
+    `;
+  } else if (status === "unconfigured") {
     details.innerHTML = `<span>${t("conn_status_details_unconfigured")}</span>`;
   } else if (status === "ready") {
     details.innerHTML = `<span>${t("conn_status_details_ready")}</span>`;
@@ -326,6 +363,69 @@ function updateConnectionUI(status, detailsMsg = "") {
     }
   }
 }
+
+function toggleOfflineUI(isOffline) {
+  const container = document.getElementById("atlassian-fields-container");
+  const syncBtn = document.getElementById("sync-atlassian-btn");
+  
+  const cloudIdInput = document.getElementById("api-cloud-id");
+  const workspaceIdInput = document.getElementById("api-workspace-id");
+  const emailInput = document.getElementById("api-email");
+  const tokenInput = document.getElementById("api-token");
+  
+  if (cloudIdInput && workspaceIdInput && emailInput && tokenInput) {
+    if (isOffline) {
+      cloudIdInput.removeAttribute("required");
+      workspaceIdInput.removeAttribute("required");
+      emailInput.removeAttribute("required");
+      tokenInput.removeAttribute("required");
+    } else {
+      cloudIdInput.setAttribute("required", "");
+      workspaceIdInput.setAttribute("required", "");
+      emailInput.setAttribute("required", "");
+      tokenInput.setAttribute("required", "");
+    }
+  }
+
+  if (container) {
+    if (isOffline) {
+      container.classList.add("disabled-fade");
+      const inputs = container.querySelectorAll("input, select, button");
+      inputs.forEach(i => i.disabled = true);
+    } else {
+      container.classList.remove("disabled-fade");
+      const inputs = container.querySelectorAll("input, select, button");
+      inputs.forEach(i => {
+        i.disabled = false;
+      });
+    }
+  }
+
+  if (syncBtn) {
+    if (isOffline) {
+      syncBtn.classList.add("disabled-fade");
+      syncBtn.disabled = true;
+    } else {
+      syncBtn.classList.remove("disabled-fade");
+      syncBtn.disabled = false;
+    }
+  }
+
+  // Update Status Dashboard representation
+  if (isOffline) {
+    updateConnectionUI("offline");
+  } else {
+    // Restore normal representation
+    if (!apiConfig.cloudId || !apiConfig.workspaceId || !apiConfig.email || !apiConfig.token) {
+      updateConnectionUI("unconfigured");
+    } else {
+      const lastStatus = localStorage.getItem("assetGuard_last_sync_status") || "ready";
+      const lastError = localStorage.getItem("assetGuard_last_sync_error") || "";
+      updateConnectionUI(lastStatus, lastError);
+    }
+  }
+}
+
 
 async function resolveCloudId(subdomain) {
   const emailVal = (document.getElementById("api-email")?.value || "").trim() || apiConfig.email;
@@ -456,6 +556,10 @@ async function resolveWorkspaceId(cloudId, originalSubdomain) {
 
 // Background Sync: Create object in Atlassian JSM Assets
 async function pushNewAssetToAtlassian(asset) {
+  if (isOfflineMode) {
+    console.log("Atlassian Push (Create) bypassed: Active Offline Mode.");
+    return;
+  }
   if (!apiConfig.email || !apiConfig.token || !atlassianBaseUrl) {
     console.log("Atlassian Push (Create) bypassed: Missing configuration or base URL.");
     return;
@@ -531,6 +635,10 @@ async function pushNewAssetToAtlassian(asset) {
 
 // Background Sync: Update object in Atlassian JSM Assets
 async function pushUpdateToAtlassian(asset) {
+  if (isOfflineMode) {
+    console.log("Atlassian Push (Update) bypassed: Active Offline Mode.");
+    return;
+  }
   if (!apiConfig.email || !apiConfig.token || !atlassianBaseUrl || !asset.atlassianObjectId) {
     console.log("Atlassian Push (Update) bypassed: Missing configuration, base URL, or remote ID.");
     return;
@@ -588,6 +696,10 @@ async function pushUpdateToAtlassian(asset) {
 
 // Atlassian API Sync Logic
 async function syncWithAtlassian() {
+  if (isOfflineMode) {
+    showToast("Sync bypassed: Active Offline Mode.", "warning");
+    return;
+  }
   if (!apiConfig.cloudId || !apiConfig.workspaceId || !apiConfig.email || !apiConfig.token) {
     showToast(t("notif_sync_error").replace("{error}", "Missing API Config (Cloud ID, Workspace ID, Email, or Token)"), "error");
     openModal("settings-modal");
@@ -631,6 +743,9 @@ async function syncWithAtlassian() {
     updateConnectionUI("syncing", "Resolving Cloud ID...");
     const resolvedCloud = await resolveCloudId(targetCloudId);
     if (resolvedCloud) {
+      // Save the human-readable subdomain before we overwrite apiConfig.cloudId with the UUID!
+      localStorage.setItem("assetGuard_subdomain", targetCloudId);
+      
       console.log("Resolved Cloud ID UUID:", resolvedCloud);
       targetCloudId = resolvedCloud;
       // Also update stored config so we don't have to resolve next time
@@ -785,7 +900,11 @@ async function syncWithAtlassian() {
           }
         } else {
           const errText = await response.text();
-          lastError = new Error(`HTTP ${response.status}: ${errText || response.statusText}`);
+          let errTextClean = errText || response.statusText;
+          if (response.status === 404) {
+            errTextClean = "Jira Assets path not found (404 Not Found). This usually means either your Cloud UUID or Workspace UUID is mismatched or unresolved.";
+          }
+          lastError = new Error(`HTTP ${response.status}: ${errTextClean}`);
           console.warn(`Page starting at ${pageStart} failed:`, lastError.message);
           hasMore = false;
           pathSuccess = false;
@@ -833,15 +952,27 @@ async function syncWithAtlassian() {
   }
 
   if (success) {
-    // Merge strategy: Remote Overwrite
-    remoteAssets.forEach(remote => {
-      const index = assets.findIndex(a => a.id.toLowerCase() === remote.id.toLowerCase());
-      if (index !== -1) {
-        assets[index] = { ...assets[index], ...remote };
-      } else {
-        assets.push(remote);
-      }
-    });
+    if (conflictStrategy === "local_overwrite") {
+      // Local Overwrites Remote (Browser Wins): local edits take precedence over remote changes
+      remoteAssets.forEach(remote => {
+        const index = assets.findIndex(a => a.id.toLowerCase() === remote.id.toLowerCase());
+        if (index !== -1) {
+          assets[index] = { ...remote, ...assets[index] };
+        } else {
+          assets.push(remote);
+        }
+      });
+    } else {
+      // Remote Overwrites Local (Atlassian Wins): remote values take priority
+      remoteAssets.forEach(remote => {
+        const index = assets.findIndex(a => a.id.toLowerCase() === remote.id.toLowerCase());
+        if (index !== -1) {
+          assets[index] = { ...assets[index], ...remote };
+        } else {
+          assets.push(remote);
+        }
+      });
+    }
 
     localStorage.setItem("assetGuard_last_sync_count", remoteAssets.length);
     saveState();
@@ -1957,8 +2088,14 @@ function setupEventListeners() {
 
   on("settings-form", "submit", (e) => {
     e.preventDefault();
+    
+    const cloudIdInputVal = document.getElementById("api-cloud-id").value.trim();
+    if (cloudIdInputVal && !cloudIdInputVal.includes("-")) {
+      localStorage.setItem("assetGuard_subdomain", cloudIdInputVal);
+    }
+
     apiConfig = {
-      cloudId: document.getElementById("api-cloud-id").value.trim(),
+      cloudId: cloudIdInputVal,
       workspaceId: document.getElementById("api-workspace-id").value.trim(),
       email: document.getElementById("api-email").value.trim(),
       token: document.getElementById("api-token").value.trim(),
@@ -1967,11 +2104,15 @@ function setupEventListeners() {
     saveState();
     
     // Reset connection status upon saving new settings
-    if (!apiConfig.cloudId || !apiConfig.workspaceId || !apiConfig.email || !apiConfig.token) {
+    if (isOfflineMode) {
+      updateConnectionUI("offline");
+    } else if (!apiConfig.cloudId || !apiConfig.workspaceId || !apiConfig.email || !apiConfig.token) {
       localStorage.setItem("assetGuard_last_sync_status", "unconfigured");
+      updateConnectionUI("unconfigured");
     } else {
       localStorage.setItem("assetGuard_last_sync_status", "ready");
       localStorage.setItem("assetGuard_last_sync_error", "");
+      updateConnectionUI("ready");
     }
     
     closeModal("settings-modal");
@@ -2454,6 +2595,27 @@ function openModal(modalId) {
       document.getElementById("api-token").value = apiConfig.token || "";
       document.getElementById("api-sync-limit").value = apiConfig.syncLimit || "100";
 
+      // Populate Offline Mode toggle
+      const offlineToggle = document.getElementById("offline-mode-toggle");
+      if (offlineToggle) {
+        offlineToggle.checked = isOfflineMode;
+        offlineToggle.onchange = (e) => {
+          isOfflineMode = e.target.checked;
+          saveState();
+          toggleOfflineUI(isOfflineMode);
+        };
+      }
+
+      // Populate Conflict Strategy
+      const conflictSelect = document.getElementById("api-conflict-strategy");
+      if (conflictSelect) {
+        conflictSelect.value = conflictStrategy;
+        conflictSelect.onchange = (e) => {
+          conflictStrategy = e.target.value;
+          saveState();
+        };
+      }
+
       // Function to dynamically update the help links
       const updateHelpLinks = () => {
         let subdomain = cloudIdInput.value.trim() || "smm-sandbox";
@@ -2476,14 +2638,8 @@ function openModal(modalId) {
       updateHelpLinks();
       cloudIdInput.oninput = updateHelpLinks;
       
-      // Determine initial status of connection dashboard
-      if (!apiConfig.cloudId || !apiConfig.workspaceId || !apiConfig.email || !apiConfig.token) {
-        updateConnectionUI("unconfigured");
-      } else {
-        const lastStatus = localStorage.getItem("assetGuard_last_sync_status") || "ready";
-        const lastError = localStorage.getItem("assetGuard_last_sync_error") || "";
-        updateConnectionUI(lastStatus, lastError);
-      }
+      // Render/Fades elements as per current offline mode state
+      toggleOfflineUI(isOfflineMode);
     }
   }
 }

@@ -429,44 +429,69 @@
         </div>
 
         <form id="settings-form">
-          <div class="form-group">
-            <label data-i18n="cloud_id">Atlassian Cloud ID</label>
-            <input type="text" id="api-cloud-id" class="form-input" placeholder="e.g. 12345678-abcd-..." required>
-            <div style="font-size: 11px; margin-top: 6px; color: var(--accent-color); display: flex; align-items: center; gap: 4px;">
-              <i class="fa-solid fa-circle-question"></i>
-              <span>Don't know your Cloud ID? <a href="#" id="find-cloud-id-link" target="_blank" style="color: var(--accent-color); font-weight: 600; text-decoration: underline;">Click here to find it instantly in your browser!</a></span>
+          <!-- Offline Local Mode Sliding Switch -->
+          <div class="switch-container">
+            <div class="switch-label-group">
+              <span class="switch-title">Local Offline Mode</span>
+              <span class="switch-subtitle">Run offline purely using LocalStorage database</span>
             </div>
+            <label class="switch-control">
+              <input type="checkbox" id="offline-mode-toggle">
+              <span class="slider"></span>
+            </label>
           </div>
-          <div class="form-group">
-            <label data-i18n="workspace_id">Assets Workspace ID</label>
-            <input type="text" id="api-workspace-id" class="form-input" placeholder="e.g. 98765432-efgh-..." required>
-            <div style="font-size: 11px; margin-top: 6px; color: var(--accent-color); display: flex; align-items: center; gap: 4px;">
-              <i class="fa-solid fa-circle-question"></i>
-              <span>Don't know your ID? <a href="#" id="find-workspace-id-link" target="_blank" style="color: var(--accent-color); font-weight: 600; text-decoration: underline;">Click here to find it instantly in your browser!</a></span>
+
+          <!-- Atlassian Fields Container (Fades out in Offline Mode) -->
+          <div id="atlassian-fields-container" style="transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+            <div class="form-group">
+              <label data-i18n="cloud_id">Atlassian Cloud ID</label>
+              <input type="text" id="api-cloud-id" class="form-input" placeholder="e.g. 12345678-abcd-..." required>
+              <div style="font-size: 11px; margin-top: 6px; color: var(--accent-color); display: flex; align-items: center; gap: 4px;">
+                <i class="fa-solid fa-circle-question"></i>
+                <span>Don't know your Cloud ID? <a href="#" id="find-cloud-id-link" target="_blank" style="color: var(--accent-color); font-weight: 600; text-decoration: underline;">Click here to find it instantly in your browser!</a></span>
+              </div>
             </div>
-          </div>
-          <div class="form-group">
-            <label data-i18n="atlassian_email">Atlassian Email</label>
-            <input type="email" id="api-email" class="form-input" placeholder="your-email@company.com" required>
-          </div>
-          <div class="form-group">
-            <label data-i18n="api_token">API Token</label>
-            <input type="password" id="api-token" class="form-input" placeholder="Enter your API Token" required>
-          </div>
-          <div class="form-group">
-            <label>Maximum Sync Limit</label>
-            <select id="api-sync-limit" class="form-select">
-              <option value="50">50 assets (Fastest)</option>
-              <option value="100" selected>100 assets (Recommended)</option>
-              <option value="200">200 assets</option>
-              <option value="500">500 assets</option>
-              <option value="99999">Unlimited (Slower)</option>
-            </select>
-          </div>
-          <div class="settings-group" style="margin-top: 16px; background: var(--bg-secondary); padding: 16px; border-radius: 12px; border: 1px solid var(--accent-blue);">
-            <label data-i18n="label_magic_setup" style="color: var(--accent-blue); font-weight: bold;">✨ Magic Setup</label>
-            <input type="text" id="api-magic-url" class="form-input" placeholder="Paste Atlassian URL here to auto-fill IDs..." style="margin-top: 8px;">
-            <div id="magic-setup-assistant" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-body); border-radius: 8px; border: 1px dashed var(--accent-blue); font-size: 11.5px; line-height: 1.4; color: var(--text-secondary);"></div>
+            <div class="form-group">
+              <label data-i18n="workspace_id">Assets Workspace ID</label>
+              <input type="text" id="api-workspace-id" class="form-input" placeholder="e.g. 98765432-efgh-..." required>
+              <div style="font-size: 11px; margin-top: 6px; color: var(--accent-color); display: flex; align-items: center; gap: 4px;">
+                <i class="fa-solid fa-circle-question"></i>
+                <span>Don't know your ID? <a href="#" id="find-workspace-id-link" target="_blank" style="color: var(--accent-color); font-weight: 600; text-decoration: underline;">Click here to find it instantly in your browser!</a></span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label data-i18n="atlassian_email">Atlassian Email</label>
+              <input type="email" id="api-email" class="form-input" placeholder="your-email@company.com" required>
+            </div>
+            <div class="form-group">
+              <label data-i18n="api_token">API Token</label>
+              <input type="password" id="api-token" class="form-input" placeholder="Enter your API Token" required>
+            </div>
+            <div class="form-group">
+              <label>Maximum Sync Limit</label>
+              <select id="api-sync-limit" class="form-select">
+                <option value="50">50 assets (Fastest)</option>
+                <option value="100" selected>100 assets (Recommended)</option>
+                <option value="200">200 assets</option>
+                <option value="500">500 assets</option>
+                <option value="99999">Unlimited (Slower)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Sync Conflict Resolution</label>
+              <select id="api-conflict-strategy" class="form-select">
+                <option value="remote_overwrite">Remote Overwrites Local (Atlassian Wins)</option>
+                <option value="local_overwrite">Local Overwrites Remote (Browser Wins)</option>
+              </select>
+              <div style="font-size: 11px; margin-top: 6px; color: var(--text-muted); line-height: 1.4;">
+                Choose what happens when an asset's data differs between your browser and Atlassian.
+              </div>
+            </div>
+            <div class="settings-group" style="margin-top: 16px; background: var(--bg-secondary); padding: 16px; border-radius: 12px; border: 1px solid var(--accent-blue);">
+              <label data-i18n="label_magic_setup" style="color: var(--accent-blue); font-weight: bold;">✨ Magic Setup</label>
+              <input type="text" id="api-magic-url" class="form-input" placeholder="Paste Atlassian URL here to auto-fill IDs..." style="margin-top: 8px;">
+              <div id="magic-setup-assistant" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-body); border-radius: 8px; border: 1px dashed var(--accent-blue); font-size: 11.5px; line-height: 1.4; color: var(--text-secondary);"></div>
+            </div>
           </div>
           <div style="display: flex; gap: 12px; margin-top: 24px; flex-direction: column;">
             <button type="submit" class="btn btn-primary" style="width: 100%;" data-i18n="save_changes">Save Changes</button>
