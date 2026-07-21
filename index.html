@@ -426,6 +426,35 @@
           <div id="connection-status-details" class="status-details">
             <span data-i18n="conn_status_details_unconfigured">Please complete your connection settings below.</span>
           </div>
+          <div style="margin-top: 8px; text-align: right; border-top: 1px solid var(--border-color); padding-top: 8px;">
+            <a href="#" id="run-diagnostics-btn" style="font-size: 11.5px; color: var(--accent-blue); text-decoration: underline; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+              <i class="fa-solid fa-terminal"></i> Run Connection Telemetry
+            </a>
+          </div>
+        </div>
+
+        <div id="diagnostics-panel" class="diagnostics-panel">
+          <div class="diagnostics-header">
+            <span><i class="fa-solid fa-terminal"></i> Telemetry Connection Tracer</span>
+            <span id="diagnostics-time">Ready</span>
+          </div>
+          <div id="diagnostics-trace-output">
+            <div class="trace-line info"><i class="fa-solid fa-info-circle"></i> Terminal Ready. Click "Run Connection Telemetry" above to begin trace.</div>
+          </div>
+        </div>
+
+        <!-- Team D: Site Reliability Uptime & Health Monitor -->
+        <div class="health-status-bar">
+          <div class="health-status-info">
+            <span id="health-heartbeat" class="heartbeat-dot"></span>
+            <div>
+              <div class="health-status-title">Team D: System Health</div>
+              <div id="health-status-text" class="health-status-value">Status: <span style="color: #3fb950; font-weight: bold;">Operational (99.99%)</span></div>
+            </div>
+          </div>
+          <button type="button" id="trigger-health-audit-btn" class="health-audit-btn">
+            <i class="fa-solid fa-heart-pulse"></i> Audit System Health
+          </button>
         </div>
 
         <form id="settings-form">
@@ -477,16 +506,7 @@
                 <option value="99999">Unlimited (Slower)</option>
               </select>
             </div>
-            <div class="form-group">
-              <label>Sync Conflict Resolution</label>
-              <select id="api-conflict-strategy" class="form-select">
-                <option value="remote_overwrite">Remote Overwrites Local (Atlassian Wins)</option>
-                <option value="local_overwrite">Local Overwrites Remote (Browser Wins)</option>
-              </select>
-              <div style="font-size: 11px; margin-top: 6px; color: var(--text-muted); line-height: 1.4;">
-                Choose what happens when an asset's data differs between your browser and Atlassian.
-              </div>
-            </div>
+
             <div class="settings-group" style="margin-top: 16px; background: var(--bg-secondary); padding: 16px; border-radius: 12px; border: 1px solid var(--accent-blue);">
               <label data-i18n="label_magic_setup" style="color: var(--accent-blue); font-weight: bold;">✨ Magic Setup</label>
               <input type="text" id="api-magic-url" class="form-input" placeholder="Paste Atlassian URL here to auto-fill IDs..." style="margin-top: 8px;">
@@ -495,11 +515,11 @@
           </div>
           <div style="display: flex; gap: 12px; margin-top: 24px; flex-direction: column;">
             <button type="submit" class="btn btn-primary" style="width: 100%;" data-i18n="save_changes">Save Changes</button>
-            <div style="display: flex; gap: 12px; width: 100%;">
-              <button type="button" id="sync-atlassian-btn" class="btn btn-secondary" style="flex: 1; background-color: var(--accent-blue); color: white;">
+            <div style="display: flex; gap: 12px; width: 100%; flex-wrap: wrap;">
+              <button type="button" id="sync-atlassian-btn" class="btn btn-secondary" style="flex: 1; min-width: 120px; background-color: var(--accent-blue); color: white;">
                 <i class="fa-solid fa-rotate"></i> <span data-i18n="sync_now">Sync Now</span>
               </button>
-              <button type="button" id="clear-config-btn" class="btn btn-secondary" style="flex: 1; color: var(--status-error);" data-i18n="clear_config">Clear Config</button>
+              <button type="button" id="clear-config-btn" class="btn btn-secondary" style="flex: 1; min-width: 120px; color: var(--status-error);" data-i18n="clear_config">Clear Config</button>
             </div>
           </div>
         </form>
@@ -560,6 +580,8 @@
       </div>
     </div>
   </div>
+
+
 
   <script src="assets.js"></script>
   <script src="translations.js"></script>
