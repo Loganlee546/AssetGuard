@@ -768,17 +768,10 @@ async function syncWithAtlassian() {
     return;
   }
 
-  // Compile the list of all historic type IDs specified by the user to merge all their assets
-  const allTypeIds = [
-    3, 14, 23, 24, 28, 35, 43, 45, 52, 53, 55, 57, 59, 61, 65, 68, 70, 74, 75, 76, 80, 
-    115, 138, 163, 164, 165, 169, 171, 172, 195, 197, 199, 202, 279
-  ];
-  const extractedTypeId = parseInt(localStorage.getItem("assetGuard_extracted_type_id")) || null;
-  if (extractedTypeId && !allTypeIds.includes(extractedTypeId)) {
-    allTypeIds.push(extractedTypeId);
-  }
-  const targetAqlQuery = `objectType IN (${allTypeIds.join(", ")})`;
-  console.log("Compiled multi-link targeted AQL query:", targetAqlQuery);
+  // Dynamic, schema-agnostic universal Atlassian Assets AQL query
+  // Using 'objectType IS NOT NULL' matches every single asset in any Atlassian workspace!
+  const targetAqlQuery = "objectType IS NOT NULL";
+  console.log("Compiled schema-agnostic universal AQL query:", targetAqlQuery);
 
   updateConnectionUI("syncing", t("sync_loading"));
   showToast(t("sync_loading"), "info");
@@ -2880,7 +2873,7 @@ async function runConnectionTelemetry() {
         headers: headers,
         signal: controller.signal,
         body: JSON.stringify({
-          qlQuery: "objectType IN (3, 14, 23)",
+          qlQuery: "objectType IS NOT NULL",
           includeAttributes: false,
           resultsPerPage: 1
         })
