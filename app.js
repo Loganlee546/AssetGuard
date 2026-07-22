@@ -828,8 +828,15 @@ async function syncWithAtlassian() {
     }
   }
 
-  // Retrieve saved subdomain or fallback
-  const sub = localStorage.getItem("assetGuard_subdomain") || (!apiConfig.cloudId.includes("-") ? apiConfig.cloudId : "");
+  // Retrieve saved subdomain or extract from cloudId/localStorage
+  let sub = localStorage.getItem("assetGuard_subdomain") || "";
+  if (!sub && apiConfig.cloudId) {
+    if (apiConfig.cloudId.includes(".atlassian.net")) {
+      sub = apiConfig.cloudId.split(".atlassian.net")[0].replace("https://", "").replace("http://", "");
+    } else if (!apiConfig.cloudId.includes("-")) {
+      sub = apiConfig.cloudId.trim();
+    }
+  }
 
   // 2. Direct Subdomain API paths (Natively supports Basic Auth API Tokens!)
   if (sub) {
@@ -900,27 +907,15 @@ async function syncWithAtlassian() {
           const data = await response.json();
           if (data && data.values && data.values.length > 0) {
             allValuesForPath = allValuesForPath.concat(data.values);
-            
-            // Provide active, real-time download count in the UI so they know it is busy downloading
-            updateConnectionUI("syncing", `Syncing: Loaded ${allValuesForPath.length} assets...`);
-            
-            // Advance start offset by the actual number of assets returned
+            updateConnectionUI("syncing", `Syncing: Loaded ${allValuesForPath.length} assets from Jira...`);
             pageStart += data.values.length;
-            
-            // Check if we retrieved everything or reached our dynamic safety sync limit
             const maxSyncLimit = apiConfig.syncLimit || 100;
             if (allValuesForPath.length >= maxSyncLimit) {
-              console.log(`Reached safety sync limit of ${maxSyncLimit} assets.`);
               hasMore = false;
-            } else if (data.totalFilterCount !== undefined) {
-              if (allValuesForPath.length >= data.totalFilterCount) {
-                hasMore = false;
-              }
-            } else {
-              // Fallback: Stop if less than the requested limit is returned
-              if (data.values.length < pageLimit || data.isLastPage === true) {
-                hasMore = false;
-              }
+            } else if (data.totalFilterCount !== undefined && allValuesForPath.length >= data.totalFilterCount) {
+              hasMore = false;
+            } else if (data.values.length < pageLimit || data.isLastPage === true) {
+              hasMore = false;
             }
             pathSuccess = true;
           } else {
@@ -930,7 +925,7 @@ async function syncWithAtlassian() {
           const errText = await response.text();
           let errTextClean = errText || response.statusText;
           if (response.status === 404) {
-            errTextClean = "Jira Assets path not found (404 Not Found). This usually means either your Cloud UUID or Workspace UUID is mismatched or unresolved.";
+            errTextClean = "Jira Assets path not found (404 Not Found). Note: Basic Auth API Tokens require your site subdomain (e.g. company) in the Cloud ID / Subdomain field!";
           }
           lastError = new Error(`HTTP ${response.status}: ${errTextClean}`);
           console.warn(`Page starting at ${pageStart} failed:`, lastError.message);
@@ -938,10 +933,53 @@ async function syncWithAtlassian() {
           pathSuccess = false;
         }
       } catch (err) {
-        lastError = err;
-        console.warn(`Exception on page starting at ${pageStart}:`, err.message);
-        hasMore = false;
-        pathSuccess = false;
+        // Fallback: Use GET request with query parameters via CORS Proxy wrapper (works natively on file://)
+        try {
+          console.log(`Direct POST fetch failed due to browser CORS/Network. Retrying via GET Proxy Wrapper...`);
+          const getAqlUrl = `${paths[i]}?qlQuery=${encodeURIComponent(targetAqlQuery)}&includeAttributes=true&start=${pageStart}&limit=${pageLimit}&resultsPerPage=${pageLimit}`;
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(getAqlUrl)}`;
+          
+          const auth = btoa(`${apiConfig.email}:${apiConfig.token}`);
+          const proxyRes = await fetch(proxyUrl, {
+            headers: {
+              "Authorization": `Basic ${auth}`
+            }
+          });
+          
+          if (proxyRes && proxyRes.ok) {
+            const wrapperData = await proxyRes.json();
+            if (wrapperData && wrapperData.contents) {
+              const data = JSON.parse(wrapperData.contents);
+              if (data && data.values && data.values.length > 0) {
+                allValuesForPath = allValuesForPath.concat(data.values);
+                updateConnectionUI("syncing", `Syncing via Proxy: Loaded ${allValuesForPath.length} assets from Jira...`);
+                pageStart += data.values.length;
+                const maxSyncLimit = apiConfig.syncLimit || 100;
+                if (allValuesForPath.length >= maxSyncLimit) {
+                  hasMore = false;
+                } else if (data.totalFilterCount !== undefined && allValuesForPath.length >= data.totalFilterCount) {
+                  hasMore = false;
+                } else if (data.values.length < pageLimit || data.isLastPage === true) {
+                  hasMore = false;
+                }
+                pathSuccess = true;
+              } else {
+                hasMore = false;
+              }
+            } else {
+              hasMore = false;
+            }
+          } else {
+            lastError = err;
+            hasMore = false;
+            pathSuccess = false;
+          }
+        } catch (proxyErr) {
+          lastError = err;
+          console.warn(`Proxy exception on page starting at ${pageStart}:`, proxyErr.message);
+          hasMore = false;
+          pathSuccess = false;
+        }
       }
     }
 
@@ -1728,6 +1766,75 @@ function setupEventListeners() {
     const el = document.querySelector(selector);
     if (el) el.addEventListener(event, callback);
   }
+
+  // Import Data (.csv or .json)
+  on("import-data-btn", "click", () => {
+    const fileInput = document.getElementById("import-file-input");
+    if (fileInput) fileInput.click();
+  });
+
+  on("import-file-input", "change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const content = evt.target.result;
+      let importedCount = 0;
+
+      try {
+        if (file.name.endsWith(".json")) {
+          const parsed = JSON.parse(content);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(item => {
+              if (item.id && !assets.some(a => a.id === item.id)) {
+                assets.unshift(item);
+                importedCount++;
+              }
+            });
+          }
+        } else if (file.name.endsWith(".csv")) {
+          const lines = content.split(/\r?\n/).filter(line => line.trim());
+          if (lines.length > 1) {
+            const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/^["']|["']$/g, ""));
+            for (let i = 1; i < lines.length; i++) {
+              const cols = lines[i].split(",").map(c => c.trim().replace(/^["']|["']$/g, ""));
+              if (cols.length >= 2) {
+                const assetId = cols[0] || `ASSET-${Date.now()}-${i}`;
+                if (!assets.some(a => a.id === assetId)) {
+                  assets.unshift({
+                    id: assetId,
+                    name: cols[1] || "Imported Asset",
+                    category: cols[2] || "Hardware",
+                    status: cols[3] || "In Use",
+                    owner: cols[4] || "Unassigned",
+                    location: cols[5] || "Main Office",
+                    serialNumber: cols[6] || `SN-${assetId}`,
+                    acquisitionDate: new Date().toISOString().split("T")[0],
+                    condition: "Good",
+                    specs: { cpu: "N/A", ram: "N/A", storage: "N/A", os: "N/A" },
+                    history: [{ date: new Date().toISOString().split("T")[0], action: "Imported", details: `Imported from ${file.name}` }]
+                  });
+                  importedCount++;
+                }
+              }
+            }
+          }
+        }
+
+        saveState();
+        updateMetrics();
+        renderAssetList();
+        showToast(`✨ Successfully imported ${importedCount} assets!`, "success");
+        closeModal("global-history-modal");
+      } catch (err) {
+        console.error("Import error:", err);
+        showToast("Error importing file. Please verify CSV or JSON format.", "error");
+      }
+      e.target.value = ""; // Reset input
+    };
+    reader.readAsText(file);
+  });
 
   // Export Data
   on("export-data-btn", "click", () => {

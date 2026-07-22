@@ -385,7 +385,11 @@
         <div id="global-history-timeline" class="history-timeline"></div>
         <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
           <button id="clear-all-data-btn" class="btn btn-secondary" style="color: var(--status-error);" data-i18n="clear_all_data">Clear All Data</button>
-          <button id="export-data-btn" class="btn btn-secondary" data-i18n="backup_data">Download Backup (.json)</button>
+          <div style="display: flex; gap: 8px;">
+            <input type="file" id="import-file-input" accept=".csv,.json" style="display: none;">
+            <button id="import-data-btn" class="btn btn-secondary" style="background: var(--accent-blue); color: white; border: none; font-weight: 600;"><i class="fa-solid fa-file-import"></i> Import (.csv / .json)</button>
+            <button id="export-data-btn" class="btn btn-secondary" data-i18n="backup_data">Download Backup (.json)</button>
+          </div>
         </div>
       </div>
     </div>
