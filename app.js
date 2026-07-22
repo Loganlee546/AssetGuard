@@ -2843,63 +2843,75 @@ async function runConnectionTelemetry() {
     addLine("info", `Cloud ID is a raw subdomain '${cloudId}'. Running auto-resolver to fetch UUID...`);
   }
   
-  // Check Step 3: Direct Ping DNS / CORS Check
-  const pingUrl = isSubdomain 
-    ? `https://${cloudId}.atlassian.net/_edge/tenant_info`
-    : `https://api.atlassian.com/ex/jira/${cloudId}/rest/servicedeskapi/assets/workspace`;
-    
-  addLine("spin", `Attempting direct secure CORS fetch to Atlassian Gateway at ${isSubdomain ? `${cloudId}.atlassian.net` : 'api.atlassian.com'}...`);
-  await new Promise(r => setTimeout(r, 600));
+  // Check Step 3: Test Live Candidate AQL Endpoints
+  const sub = localStorage.getItem("assetGuard_subdomain") || (!cloudId.includes("-") ? cloudId : "");
+  
+  const candidateUrls = [];
+  if (sub) {
+    candidateUrls.push(`https://${sub}.atlassian.net/gateway/api/jsm/assets/workspace/${workspaceId}/v1/object/aql`);
+    candidateUrls.push(`https://${sub}.atlassian.net/rest/servicedeskapi/assets/workspace/${workspaceId}/v1/object/aql`);
+  }
+  if (cloudId && cloudId.includes("-")) {
+    candidateUrls.push(`https://api.atlassian.com/ex/jira/${cloudId}/jsm/assets/workspace/${workspaceId}/v1/object/aql`);
+  }
+
+  addLine("info", `Testing ${candidateUrls.length} candidate Atlassian AQL endpoints...`);
   
   const auth = btoa(`${email}:${token}`);
   const headers = {
     "Authorization": `Basic ${auth}`,
+    "Content-Type": "application/json",
     "Accept": "application/json"
   };
   
-  let directSuccess = false;
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
-    const res = await fetch(pingUrl, { headers, signal: controller.signal });
-    clearTimeout(timeout);
-    
-    if (res.ok) {
-      addLine("success", "Direct gateway ping succeeded! Your browser can connect directly to Atlassian with no CORS restrictions.");
-      directSuccess = true;
-    } else {
-      addLine("warning", `Direct connection returned status ${res.status}: ${res.statusText}. Authentic credentials required.`);
-    }
-  } catch (err) {
-    addLine("error", `Direct connection BLOCKED by browser security: ${err.message}. (CORS restriction standard on localhost/static)`);
-  }
+  let routeSuccess = false;
   
-  if (!directSuccess) {
-    // Check Step 4: Fallback Proxy diagnostics via allorigins
-    const proxyPrefix = "https://api.allorigins.win/get?url=";
-    addLine("info", "Smart CORS Auto-Proxy diagnostics: Testing backup route via public resolver allorigins.win...");
-    await new Promise(r => setTimeout(r, 500));
+  for (let idx = 0; idx < candidateUrls.length; idx++) {
+    const testUrl = candidateUrls[idx];
+    addLine("spin", `[Route ${idx+1}/${candidateUrls.length}] Testing: ${testUrl}`);
+    await new Promise(r => setTimeout(r, 400));
     
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-      const fullProxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(pingUrl)}`;
-      const res = await fetch(fullProxyUrl, { signal: controller.signal });
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      
+      const res = await fetch(`${testUrl}?start=0&limit=1`, {
+        method: "POST",
+        headers: headers,
+        signal: controller.signal,
+        body: JSON.stringify({
+          qlQuery: "objectType IN (3, 14, 23)",
+          includeAttributes: false,
+          resultsPerPage: 1
+        })
+      });
       clearTimeout(timeout);
       
-      if (res && res.ok) {
-        const data = await res.json();
-        if (data && data.contents) {
-          addLine("success", "Public Proxy Fallback test SUCCEEDED! Cross-origin requests can bypass CORS via proxy.");
-        } else {
-          addLine("error", "Public Proxy returned empty contents block.");
-        }
+      if (res.ok) {
+        addLine("success", `Route ${idx+1} SUCCEEDED! HTTP ${res.status} OK! Workspace ID verified.`);
+        routeSuccess = true;
+        break;
       } else {
-        addLine("error", "Public Proxy gateway returned status code error.");
+        const errText = await res.text().catch(() => "");
+        if (res.status === 404) {
+          addLine("error", `Route ${idx+1} returned HTTP 404 Not Found. Workspace ID '${workspaceId}' or path invalid on this endpoint.`);
+        } else if (res.status === 401 || res.status === 403) {
+          addLine("warning", `Route ${idx+1} returned HTTP ${res.status} ${res.statusText}. Check Email & API Token.`);
+        } else {
+          addLine("warning", `Route ${idx+1} returned HTTP ${res.status}: ${res.statusText}. Snippet: ${errText.substring(0, 100)}`);
+        }
       }
-    } catch (proxyErr) {
-      addLine("error", `Public Proxy routing check failed: ${proxyErr.message}`);
+    } catch (err) {
+      if (err.name === "AbortError") {
+        addLine("warning", `Route ${idx+1} timed out after 4s (likely CORS or network firewall).`);
+      } else {
+        addLine("error", `Route ${idx+1} network error: ${err.message} (CORS block standard on localhost/static).`);
+      }
     }
+  }
+  
+  if (!routeSuccess) {
+    addLine("warning", "💡 Recommendation: If all direct routes returned 404, verify that your Workspace ID was extracted using '/rest/servicedeskapi/assets/workspace' and NOT from the browser URL address bar.");
   }
   
   addLine("success", "Tracer diagnostics complete. Connection telemetry successfully analyzed.");
