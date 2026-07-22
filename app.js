@@ -1717,6 +1717,18 @@ function switchDetailTab(tabId) {
 }
 // Setup Event Listeners
 function setupEventListeners() {
+  // Defensive helper to attach listeners safely
+  function on(id, event, callback) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener(event, callback);
+  }
+
+  // Defensive helper for selectors
+  function onSelector(selector, event, callback) {
+    const el = document.querySelector(selector);
+    if (el) el.addEventListener(event, callback);
+  }
+
   // Export Data
   on("export-data-btn", "click", () => {
     const dataStr = JSON.stringify(assets, null, 2);
@@ -2422,17 +2434,7 @@ function setupEventListeners() {
     showToast(t("notif_saved"), "success");
   });
 
-  // Defensive helper to attach listeners
-  function on(id, event, callback) {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener(event, callback);
-  }
 
-  // Defensive helper for selectors
-  function onSelector(selector, event, callback) {
-    const el = document.querySelector(selector);
-    if (el) el.addEventListener(event, callback);
-  }
 
   // Submit add new asset form
   on("add-asset-form", "submit", (e) => {
