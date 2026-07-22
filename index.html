@@ -410,15 +410,15 @@
       <div class="modal-body">
         <!-- Help Section (Hidden by default) -->
         <div id="settings-help-section" class="guide-section" style="display: none; margin-bottom: 20px; padding: 16px; background: var(--bg-secondary); border-radius: 12px; border: 1px solid var(--accent-purple);">
-          <h4 style="margin-top: 0; color: var(--accent-purple);"><i class="fa-solid fa-lightbulb"></i> <span data-i18n="help_guide_title">Setup Guide</span></h4>
-          <ul style="font-size: 13px; color: var(--text-muted); padding-left: 20px; line-height: 1.6;">
-            <li data-i18n="help_step_1">Go to your Jira Assets page and copy the URL.</li>
-            <li data-i18n="help_step_2">Paste it into the 'Magic Setup' box below to extract your Workspace ID.</li>
-            <li data-i18n="help_step_3">Open a new tab, go to 'https://YOUR-SITE.atlassian.net/metadata/properties/id' and copy the long ID.</li>
-            <li data-i18n="help_step_4">Get an API Token from your Atlassian Account Settings.</li>
-            <li data-i18n="help_step_5">Paste the Cloud ID and Token, then click Save Changes.</li>
-          </ul>
-          <button id="close-help-btn" class="btn btn-secondary btn-sm" style="width: 100%; margin-top: 8px;" data-i18n="btn_got_it">Got it!</button>
+          <h4 style="margin-top: 0; color: var(--accent-purple);"><i class="fa-solid fa-lightbulb"></i> Atlassian Setup Guide</h4>
+          <ol style="font-size: 12.5px; color: var(--text-secondary); padding-left: 20px; line-height: 1.6; margin-bottom: 12px;">
+            <li><strong>Cloud ID / Subdomain</strong>: Click <em>Short Subdomain</em> and type your site name (e.g. <code>acme-corp</code> if your URL is <code>https://acme-corp.atlassian.net</code>).</li>
+            <li><strong>Workspace ID</strong>: Click <em>Short Schema ID</em> and type your schema number (e.g. <code>3</code> or <code>14</code>), OR click <em>Long UUID</em> and enter your 36-character Workspace UUID.</li>
+            <li><strong>Email & API Token</strong>: Enter your Atlassian account email and generated API Token (from <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" style="color: var(--accent-blue); text-decoration: underline;">id.atlassian.com</a>).</li>
+            <li><strong>Click Save & Sync</strong>: Click <strong>Save Changes</strong>, then click <strong>Sync Now</strong> under the connection status card!</li>
+            <li><strong>Alternative CSV Import</strong>: If you have a spreadsheet or exported CSV file from Jira, open <strong>Audit Trail</strong> (clock icon) and click <strong>Import (.csv / .json)</strong> for 1-second instant loading!</li>
+          </ol>
+          <button type="button" id="close-help-btn" class="btn btn-secondary btn-sm" style="width: 100%; font-weight: bold;" data-i18n="btn_got_it">Got it!</button>
         </div>
 
         <!-- Connection Status Dashboard -->

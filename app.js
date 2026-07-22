@@ -499,13 +499,10 @@ async function resolveCloudId(subdomain) {
       console.warn(`Direct fetch to ${url} failed (likely CORS), trying proxy fallback...`, e);
       try {
         let parsed = null;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         const proxyRes = await fetch(proxyUrl);
         if (proxyRes.ok) {
-          const proxyData = await proxyRes.json();
-          if (proxyData && proxyData.contents) {
-            parsed = JSON.parse(proxyData.contents);
-          }
+          parsed = await proxyRes.json();
         }
 
         if (parsed) {
@@ -567,19 +564,10 @@ async function resolveWorkspaceId(cloudId, originalSubdomain) {
         res = await fetch(url, { method: "GET", headers });
       } catch (fetchErr) {
         console.warn(`Direct fetch to ${url} failed, attempting proxy fallback...`, fetchErr);
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const proxyRes = await fetch(proxyUrl);
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        const proxyRes = await fetch(proxyUrl, { headers });
         if (proxyRes.ok) {
-          const proxyData = await proxyRes.json();
-          if (proxyData && proxyData.contents) {
-            const contentsText = proxyData.contents;
-            res = {
-              ok: true,
-              status: 200,
-              json: async () => JSON.parse(contentsText),
-              text: async () => contentsText
-            };
-          }
+          res = proxyRes;
         }
         if (!res) throw fetchErr; // Fall through to catch if proxy resolution failed entirely
       }
@@ -933,49 +921,55 @@ async function syncWithAtlassian() {
           pathSuccess = false;
         }
       } catch (err) {
-        // Fallback: Use GET request with query parameters via CORS Proxy wrapper (works natively on file://)
+        // Fallback: Use CORS Proxy wrapper (corsproxy.io) which forwards Authorization headers directly to Atlassian!
         try {
-          console.log(`Direct POST fetch failed due to browser CORS/Network. Retrying via GET Proxy Wrapper...`);
-          const getAqlUrl = `${paths[i]}?qlQuery=${encodeURIComponent(targetAqlQuery)}&includeAttributes=true&start=${pageStart}&limit=${pageLimit}&resultsPerPage=${pageLimit}`;
-          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(getAqlUrl)}`;
-          
+          console.log(`Direct fetch blocked by browser CORS. Retrying via header-preserving CORS Proxy wrapper for ${currentUrl}...`);
           const auth = btoa(`${apiConfig.email}:${apiConfig.token}`);
+          const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(currentUrl)}`;
+          
           const proxyRes = await fetch(proxyUrl, {
+            method: "POST",
             headers: {
-              "Authorization": `Basic ${auth}`
-            }
+              "Authorization": `Basic ${auth}`,
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+              "X-ExperimentalApi": "opt-in"
+            },
+            body: JSON.stringify({
+              qlQuery: targetAqlQuery,
+              includeAttributes: true,
+              start: pageStart,
+              resultsPerPage: pageLimit
+            })
           });
           
           if (proxyRes && proxyRes.ok) {
-            const wrapperData = await proxyRes.json();
-            if (wrapperData && wrapperData.contents) {
-              const data = JSON.parse(wrapperData.contents);
-              if (data && data.values && data.values.length > 0) {
-                allValuesForPath = allValuesForPath.concat(data.values);
-                updateConnectionUI("syncing", `Syncing via Proxy: Loaded ${allValuesForPath.length} assets from Jira...`);
-                pageStart += data.values.length;
-                const maxSyncLimit = apiConfig.syncLimit || 100;
-                if (allValuesForPath.length >= maxSyncLimit) {
-                  hasMore = false;
-                } else if (data.totalFilterCount !== undefined && allValuesForPath.length >= data.totalFilterCount) {
-                  hasMore = false;
-                } else if (data.values.length < pageLimit || data.isLastPage === true) {
-                  hasMore = false;
-                }
-                pathSuccess = true;
-              } else {
+            const data = await proxyRes.json();
+            if (data && data.values && data.values.length > 0) {
+              allValuesForPath = allValuesForPath.concat(data.values);
+              updateConnectionUI("syncing", `Syncing via Proxy: Loaded ${allValuesForPath.length} assets from Jira...`);
+              pageStart += data.values.length;
+              const maxSyncLimit = apiConfig.syncLimit || 100;
+              if (allValuesForPath.length >= maxSyncLimit) {
+                hasMore = false;
+              } else if (data.totalFilterCount !== undefined && allValuesForPath.length >= data.totalFilterCount) {
+                hasMore = false;
+              } else if (data.values.length < pageLimit || data.isLastPage === true) {
                 hasMore = false;
               }
+              pathSuccess = true;
             } else {
               hasMore = false;
             }
-          } else {
-            lastError = err;
+          } else if (proxyRes) {
+            const txt = await proxyRes.text();
+            lastError = new Error(`Proxy HTTP ${proxyRes.status}: ${txt || proxyRes.statusText}`);
+            console.warn(`Proxy attempt on page starting at ${pageStart} failed:`, lastError.message);
             hasMore = false;
             pathSuccess = false;
           }
         } catch (proxyErr) {
-          lastError = err;
+          lastError = proxyErr;
           console.warn(`Proxy exception on page starting at ${pageStart}:`, proxyErr.message);
           hasMore = false;
           pathSuccess = false;
