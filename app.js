@@ -1027,8 +1027,13 @@ async function syncWithAtlassian() {
   } else {
     console.error("All sync paths failed. Last error:", lastError);
     const errMsg = lastError ? lastError.message : "404 Not Found";
+    
+    // Ensure dashboard displays existing local assets smoothly despite network failures
+    renderAssetList();
+    updateMetrics();
+    
     updateConnectionUI("error", errMsg);
-    showToast(t("notif_sync_error").replace("{error}", errMsg), "error");
+    showToast(`Cloud Sync Unverified: ${errMsg.substring(0, 60)}. You can toggle Offline Sandbox Mode in Settings for 100% instant local operation.`, "warning");
   }
 }
 
