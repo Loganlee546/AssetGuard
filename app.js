@@ -769,8 +769,8 @@ async function syncWithAtlassian() {
   }
 
   // Dynamic, schema-agnostic universal Atlassian Assets AQL query
-  // Using 'objectType IS NOT NULL' matches every single asset in any Atlassian workspace!
-  const targetAqlQuery = "objectType IS NOT NULL";
+  // Using 'id IS NOT NULL' is valid AQL syntax that matches every single asset object in any workspace!
+  const targetAqlQuery = "id IS NOT NULL";
   console.log("Compiled schema-agnostic universal AQL query:", targetAqlQuery);
 
   updateConnectionUI("syncing", t("sync_loading"));
@@ -2873,7 +2873,7 @@ async function runConnectionTelemetry() {
         headers: headers,
         signal: controller.signal,
         body: JSON.stringify({
-          qlQuery: "objectType IS NOT NULL",
+          qlQuery: "id IS NOT NULL",
           includeAttributes: false,
           resultsPerPage: 1
         })
