@@ -433,9 +433,7 @@ function toggleOfflineUI(isOffline) {
   }
 
   // Update Status Dashboard representation
-  const heartbeat = document.getElementById("health-heartbeat");
   if (isOffline) {
-    if (heartbeat) heartbeat.className = "heartbeat-dot offline";
     updateConnectionUI("offline");
   } else {
     // Restore normal representation
@@ -2760,15 +2758,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Bind Team D Health Audit trigger
-  const triggerHealthAuditBtn = document.getElementById("trigger-health-audit-btn");
-  if (triggerHealthAuditBtn) {
-    triggerHealthAuditBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      runSystemHealthAudit();
-    });
-  }
-
 });
 
 // Run connection diagnostic telemetry tracing
@@ -2896,106 +2885,6 @@ async function runConnectionTelemetry() {
   
   addLine("success", "Tracer diagnostics complete. Connection telemetry successfully analyzed.");
 }
-
-// Team D Site Reliability System Health Audit
-async function runSystemHealthAudit() {
-  const panel = document.getElementById("diagnostics-panel");
-  const output = document.getElementById("diagnostics-trace-output");
-  const timeSpan = document.getElementById("diagnostics-time");
-  const heartbeat = document.getElementById("health-heartbeat");
-  
-  if (!panel || !output) return;
-  
-  // Slide open the terminal if closed
-  panel.classList.add("active");
-  timeSpan.textContent = new Date().toLocaleTimeString();
-  output.innerHTML = "";
-  
-  const addLine = (type, text) => {
-    const iconMap = {
-      info: "fa-info-circle",
-      success: "fa-circle-check",
-      warning: "fa-triangle-exclamation",
-      error: "fa-circle-xmark",
-      spin: "fa-spinner fa-spin"
-    };
-    const line = document.createElement("div");
-    line.className = `trace-line ${type}`;
-    line.innerHTML = `<i class="fa-solid ${iconMap[type] || 'fa-terminal'}"></i> ${text}`;
-    output.appendChild(line);
-    output.scrollTop = output.scrollHeight;
-  };
-
-  addLine("info", "TEAM D: Initializing Active Site Reliability & Health Monitor Audit...");
-  await new Promise(r => setTimeout(r, 400));
-  
-  // Step 1: Persona check
-  addLine("success", "SRE Lead Agent J active: Initiating System Diagnostics handshake.");
-  await new Promise(r => setTimeout(r, 300));
-
-  // Step 2: Database health check
-  addLine("spin", "Analyzing LocalStorage database integrity & capacity...");
-  await new Promise(r => setTimeout(r, 600));
-  
-  try {
-    const keysCount = localStorage.length;
-    let dataSize = 0;
-    for (let i = 0; i < keysCount; i++) {
-      const key = localStorage.key(i);
-      dataSize += (localStorage.getItem(key) || "").length * 2; // Approximation in bytes (UTF-16)
-    }
-    
-    // Check if assets list parses correctly
-    const localData = localStorage.getItem("assetGuard_assets");
-    if (localData) {
-      const parsed = JSON.parse(localData);
-      addLine("success", `Local Database is HEALTHY: ${Array.isArray(parsed) ? parsed.length : 0} physical assets active. (${(dataSize / 1024).toFixed(2)} KB allocated)`);
-    } else {
-      addLine("info", "Local Database initialized cleanly: Sandbox table empty.");
-    }
-  } catch (dbErr) {
-    addLine("error", `Database corruption detected: ${dbErr.message}`);
-  }
-  
-  // Step 3: Network isolation mode audit
-  addLine("spin", "Verifying Sandbox Isolation configurations...");
-  await new Promise(r => setTimeout(r, 450));
-  
-  if (isOfflineMode) {
-    addLine("warning", "Local Sandbox Active: Remote network requests successfully isolated locally.");
-    if (heartbeat) {
-      heartbeat.className = "heartbeat-dot offline";
-    }
-  } else {
-    addLine("success", "Outbound Sync Engine is READY: Browser is online.");
-    if (heartbeat) {
-      heartbeat.className = "heartbeat-dot";
-    }
-  }
-
-  // Step 4: Third-party CDN check
-  addLine("spin", "Pinging core FontAwesome and QR-Server CDNs...");
-  await new Promise(r => setTimeout(r, 500));
-  
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-    const res = await fetch("https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js", { method: "HEAD", signal: controller.signal });
-    clearTimeout(timeout);
-    
-    if (res.ok) {
-      addLine("success", "Dependency Gateway Audit: High-speed CDN gateways are fully available.");
-    } else {
-      addLine("warning", "CDN returned slow handshake response. System operational but latency elevated.");
-    }
-  } catch (netErr) {
-    addLine("warning", `CDN Ping bypassed: Local static file caching serving fallback tags. (${netErr.message})`);
-  }
-
-  // Final conclusion
-  addLine("success", "TEAM D AUDIT COMPLETE: System health operational at 100% reliability. 0 errors detected.");
-}
-
 
 
 
