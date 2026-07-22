@@ -347,36 +347,44 @@ function updateConnectionUI(status, detailsMsg = "") {
     } else if (detailsMsg.includes("404") || detailsMsg.includes("path not found")) {
       const savedSub = localStorage.getItem("assetGuard_subdomain") || "your-site";
       details.innerHTML = `
-        <span style="color: var(--status-error); font-weight: 600; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-circle-xmark"></i> Atlassian Path Not Found (404)</span>
+        <span style="color: var(--status-error); font-weight: 600; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-circle-xmark"></i> Atlassian Path Not Found (HTTP 404)</span>
         <p style="margin-top: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.45;">
-          This happens when Atlassian can't find your Assets Workspace with the current IDs. Your <strong>Cloud ID</strong> or <strong>Workspace ID</strong> is mismatched.
+          Atlassian Cloud returned 404. Here is how to resolve each of the 3 server-side causes in 1 click:
         </p>
         
-        <div style="margin-top: 10px; background: rgba(255, 196, 0, 0.1); border: 1px solid #FFC400; border-radius: 6px; padding: 10px; font-size: 11px; line-height: 1.4; color: var(--text-primary);">
-          <strong style="color: #FFD600; display: flex; align-items: center; gap: 4px;">
-            <i class="fa-solid fa-triangle-exclamation"></i> CRITICAL: Do NOT copy the ID from your address bar!
-          </strong>
-          In your browser's address bar, Jira displays your <strong>Object Schema ID UUID</strong> (e.g. <code style="font-family: monospace; font-size: 10px; color: var(--accent-blue);">/object-schema/abc...</code>). 
-          <strong>This is NOT your Workspace ID!</strong> Using it will always trigger a 404 error. You must extract your true Workspace ID via the steps below.
-        </div>
-        
-        <div style="margin-top: 12px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
-          <div style="font-weight: 600; font-size: 12px; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-            <i class="fa-solid fa-circle-check" style="color: var(--status-success);"></i> 5-Second Foolproof Solution:
+        <div style="margin-top: 10px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+          <!-- Solution for Reason 1: Plan/Licensing -->
+          <div style="font-size: 11.5px; line-height: 1.4; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+            <strong style="color: var(--text-primary);"><i class="fa-solid fa-shield-halved" style="color: var(--accent-purple);"></i> Fix Reason 1 (Plan / License):</strong><br/>
+            If your site is on Jira Service Management Free/Standard, Assets REST APIs do not exist on Atlassian's servers. You can use instant Batch Import instead:
+            <div style="margin-top: 6px; display: flex; gap: 8px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openModal('audit-modal')" style="font-size: 11px; padding: 4px 10px;">
+                <i class="fa-solid fa-file-import"></i> Open Batch CSV / JSON Importer
+              </button>
+            </div>
           </div>
-          
-          <div style="font-size: 11.5px; line-height: 1.5; color: var(--text-secondary);">
-            Open these direct diagnostic links in your web browser (make sure you are logged into Jira):
-            <ul style="margin: 6px 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 8px; list-style-type: decimal;">
+
+          <!-- Solution for Reason 2: Schema Permissions -->
+          <div style="font-size: 11.5px; line-height: 1.4; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+            <strong style="color: var(--text-primary);"><i class="fa-solid fa-key" style="color: var(--accent-blue);"></i> Fix Reason 2 (API Token Permissions):</strong><br/>
+            Grant Schema Manager permissions to your Atlassian account inside Jira Assets:
+            <div style="margin-top: 6px;">
+              <a href="https://${savedSub}.atlassian.net/jira/servicedesk/assets/object-schemas" target="_blank" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 10px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Jira Assets Schema Permissions
+              </a>
+            </div>
+          </div>
+
+          <!-- Solution for Reason 3: True ID Extraction -->
+          <div style="font-size: 11.5px; line-height: 1.4; color: var(--text-secondary);">
+            <strong style="color: var(--text-primary);"><i class="fa-solid fa-database" style="color: var(--status-success);"></i> Fix Reason 3 (True ID Extraction):</strong><br/>
+            Open these direct links in your browser to extract your true Cloud & Workspace IDs:
+            <ul style="margin: 6px 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 6px; list-style-type: decimal;">
               <li>
-                <strong>Step 1: Extract Cloud ID</strong><br/>
-                Open <a href="https://${savedSub}.atlassian.net/metadata/properties/id" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-weight: bold;">metadata/properties/id</a>.<br/>
-                Copy the text in that page, paste it into the <strong>Magic Setup</strong> box below, and watch it configure your Cloud ID instantly!
+                <a href="https://${savedSub}.atlassian.net/metadata/properties/id" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-weight: bold;">metadata/properties/id</a> (Cloud ID)
               </li>
               <li>
-                <strong>Step 2: Extract TRUE Workspace ID</strong><br/>
-                Open <a href="https://${savedSub}.atlassian.net/rest/servicedeskapi/assets/workspace" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-weight: bold;">rest/servicedeskapi/assets/workspace</a>.<br/>
-                Copy the text in that page, paste it into the <strong>Magic Setup</strong> box below, and watch it configure your Workspace ID instantly!
+                <a href="https://${savedSub}.atlassian.net/rest/servicedeskapi/assets/workspace" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-weight: bold;">rest/servicedeskapi/assets/workspace</a> (Workspace ID)
               </li>
             </ul>
           </div>
@@ -826,13 +834,16 @@ async function syncWithAtlassian() {
     }
   }
 
-  // 2. Direct Subdomain API paths (Natively supports Basic Auth API Tokens!)
+  // 2. Direct Subdomain API paths (Natively supports Basic Auth API Tokens & Legacy Insight endpoints!)
   if (sub) {
     const directPaths = [
       `https://${sub}.atlassian.net/gateway/api/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`,
       `https://${sub}.atlassian.net/rest/servicedeskapi/assets/workspace/${targetWorkspaceId}/v1/object/aql`,
       `https://${sub}.atlassian.net/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`,
-      `https://${sub}.atlassian.net/rest/servicedesk/assets/1.0/object/aql`
+      `https://${sub}.atlassian.net/rest/servicedesk/assets/1.0/object/aql`,
+      `https://${sub}.atlassian.net/rest/insight/1.0/object/aql`,
+      `https://${sub}.atlassian.net/rest/insight/1.0/object/aql?objectSchemaId=${targetWorkspaceId}`,
+      `https://${sub}.atlassian.net/rest/servicedeskapi/insight/workspace/${targetWorkspaceId}/v1/object/aql`
     ];
     directPaths.forEach(p => {
       if (!paths.includes(p)) paths.push(p);
