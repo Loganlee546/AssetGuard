@@ -801,33 +801,9 @@ async function syncWithAtlassian() {
     }
   }
 
-  // Stage 2: Auto-resolve Workspace ID if it is a schema ID (not a UUID)
+  // Stage 2: Preserve whatever Workspace ID the user provided
   if (!isValidUUID(targetWorkspaceId)) {
-    console.log(`Workspace ID '${targetWorkspaceId}' is a user-provided ID. Attempting background resolution while preserving user input...`);
-    try {
-      const originalSubdomain = !apiConfig.cloudId.includes("-") ? apiConfig.cloudId : (isSubdomain ? apiConfig.cloudId : null);
-      const resolvedWorkspace = await resolveWorkspaceId(targetCloudId, originalSubdomain);
-      if (resolvedWorkspace) {
-        console.log("Background resolved Workspace UUID fallback:", resolvedWorkspace);
-        // Do NOT overwrite user's input field or apiConfig; preserve whatever ID the user typed!
-      }
-    } catch (err) {
-      console.warn("Background workspace resolution skipped:", err.message);
-    }
-  }
-      console.error("Workspace ID resolution failed:", err.message);
-      let diagMsg = "Could not resolve Schema ID to Atlassian Workspace UUID.";
-      if (err.message.includes("401") || err.message.includes("unauthorized") || err.message.includes("Unauthorized")) {
-        diagMsg = "Auth failed (HTTP 401). Please verify your Atlassian Email and API Token in settings!";
-      } else if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError") || err.message.includes("abort")) {
-        diagMsg = "Network blocked! Please make sure your Chrome 'Allow CORS' extension is turned ON!";
-      } else {
-        diagMsg = `Resolution failed: ${err.message}. Try pasting your long Workspace UUID directly!`;
-      }
-      updateConnectionUI("error", diagMsg);
-      showToast(diagMsg, "error");
-      return; // Stop the sync immediately to prevent misleading 404 dead link screens!
-    }
+    console.log(`Workspace ID '${targetWorkspaceId}' is a user-provided ID. Preserving user input...`);
   }
 
   updateConnectionUI("syncing", "Fetching Assets from Atlassian...");
