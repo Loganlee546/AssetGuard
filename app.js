@@ -769,8 +769,8 @@ async function syncWithAtlassian() {
   }
 
   // Dynamic, schema-agnostic universal Atlassian Assets AQL query
-  // Using 'id IS NOT NULL' is valid AQL syntax that matches every single asset object in any workspace!
-  const targetAqlQuery = "id IS NOT NULL";
+  // Using 'id > 0' is valid Atlassian AQL syntax that matches every single asset object in any workspace!
+  const targetAqlQuery = "id > 0";
   console.log("Compiled schema-agnostic universal AQL query:", targetAqlQuery);
 
   updateConnectionUI("syncing", t("sync_loading"));
@@ -2270,6 +2270,72 @@ function setupEventListeners() {
     document.getElementById("settings-help-section").style.display = "none";
   });
 
+  // Mode Toggles: Short Subdomain vs Long Cloud UUID
+  on("cloud-mode-short-btn", "click", () => {
+    document.getElementById("cloud-mode-short-btn").classList.add("active");
+    document.getElementById("cloud-mode-short-btn").style.background = "var(--accent-blue)";
+    document.getElementById("cloud-mode-short-btn").style.color = "white";
+    document.getElementById("cloud-mode-uuid-btn").classList.remove("active");
+    document.getElementById("cloud-mode-uuid-btn").style.background = "transparent";
+    document.getElementById("cloud-mode-uuid-btn").style.color = "var(--text-secondary)";
+    
+    const input = document.getElementById("api-cloud-id");
+    if (input) {
+      input.placeholder = "e.g. your-subdomain (e.g. acme-corp)";
+      const savedSub = localStorage.getItem("assetGuard_subdomain") || "";
+      if (savedSub) input.value = savedSub;
+    }
+  });
+
+  on("cloud-mode-uuid-btn", "click", () => {
+    document.getElementById("cloud-mode-uuid-btn").classList.add("active");
+    document.getElementById("cloud-mode-uuid-btn").style.background = "var(--accent-blue)";
+    document.getElementById("cloud-mode-uuid-btn").style.color = "white";
+    document.getElementById("cloud-mode-short-btn").classList.remove("active");
+    document.getElementById("cloud-mode-short-btn").style.background = "transparent";
+    document.getElementById("cloud-mode-short-btn").style.color = "var(--text-secondary)";
+    
+    const input = document.getElementById("api-cloud-id");
+    if (input) {
+      input.placeholder = "e.g. 12345678-abcd-1234-5678-1234567890ab";
+      const savedUuid = localStorage.getItem("assetGuard_cloud_uuid") || "";
+      if (savedUuid) input.value = savedUuid;
+    }
+  });
+
+  // Mode Toggles: Short Schema ID vs Long Workspace UUID
+  on("workspace-mode-short-btn", "click", () => {
+    document.getElementById("workspace-mode-short-btn").classList.add("active");
+    document.getElementById("workspace-mode-short-btn").style.background = "var(--accent-blue)";
+    document.getElementById("workspace-mode-short-btn").style.color = "white";
+    document.getElementById("workspace-mode-uuid-btn").classList.remove("active");
+    document.getElementById("workspace-mode-uuid-btn").style.background = "transparent";
+    document.getElementById("workspace-mode-uuid-btn").style.color = "var(--text-secondary)";
+    
+    const input = document.getElementById("api-workspace-id");
+    if (input) {
+      input.placeholder = "e.g. 3 or 14 (Schema ID)";
+      const savedSchema = localStorage.getItem("assetGuard_schema_id") || "";
+      if (savedSchema) input.value = savedSchema;
+    }
+  });
+
+  on("workspace-mode-uuid-btn", "click", () => {
+    document.getElementById("workspace-mode-uuid-btn").classList.add("active");
+    document.getElementById("workspace-mode-uuid-btn").style.background = "var(--accent-blue)";
+    document.getElementById("workspace-mode-uuid-btn").style.color = "white";
+    document.getElementById("workspace-mode-short-btn").classList.remove("active");
+    document.getElementById("workspace-mode-short-btn").style.background = "transparent";
+    document.getElementById("workspace-mode-short-btn").style.color = "var(--text-secondary)";
+    
+    const input = document.getElementById("api-workspace-id");
+    if (input) {
+      input.placeholder = "e.g. 98765432-efgh-1234-5678-1234567890ab";
+      const savedUuid = localStorage.getItem("assetGuard_workspace_uuid") || "";
+      if (savedUuid) input.value = savedUuid;
+    }
+  });
+
   on("settings-close-btn", "click", () => {
     closeModal("settings-modal");
     document.getElementById("settings-help-section").style.display = "none"; // Reset for next time
@@ -2281,13 +2347,27 @@ function setupEventListeners() {
     e.preventDefault();
     
     const cloudIdInputVal = document.getElementById("api-cloud-id").value.trim();
-    if (cloudIdInputVal && !cloudIdInputVal.includes("-")) {
-      localStorage.setItem("assetGuard_subdomain", cloudIdInputVal);
+    const workspaceIdInputVal = document.getElementById("api-workspace-id").value.trim();
+
+    if (cloudIdInputVal) {
+      if (!cloudIdInputVal.includes("-")) {
+        localStorage.setItem("assetGuard_subdomain", cloudIdInputVal);
+      } else {
+        localStorage.setItem("assetGuard_cloud_uuid", cloudIdInputVal);
+      }
+    }
+
+    if (workspaceIdInputVal) {
+      if (!workspaceIdInputVal.includes("-") && workspaceIdInputVal.length < 10) {
+        localStorage.setItem("assetGuard_schema_id", workspaceIdInputVal);
+      } else {
+        localStorage.setItem("assetGuard_workspace_uuid", workspaceIdInputVal);
+      }
     }
 
     apiConfig = {
       cloudId: cloudIdInputVal,
-      workspaceId: document.getElementById("api-workspace-id").value.trim(),
+      workspaceId: workspaceIdInputVal,
       email: document.getElementById("api-email").value.trim(),
       token: document.getElementById("api-token").value.trim(),
       syncLimit: parseInt(document.getElementById("api-sync-limit").value) || 100
@@ -2948,7 +3028,7 @@ async function runConnectionTelemetry() {
         headers: headers,
         signal: controller.signal,
         body: JSON.stringify({
-          qlQuery: "id IS NOT NULL",
+          qlQuery: "id > 0",
           includeAttributes: false,
           resultsPerPage: 1
         })

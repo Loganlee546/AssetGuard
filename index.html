@@ -464,16 +464,29 @@
           <!-- Atlassian Fields Container (Fades out in Offline Mode) -->
           <div id="atlassian-fields-container" style="transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
             <div class="form-group">
-              <label data-i18n="cloud_id">Atlassian Cloud ID</label>
-              <input type="text" id="api-cloud-id" class="form-input" placeholder="e.g. 12345678-abcd-..." required>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+                <label data-i18n="cloud_id" style="margin-bottom: 0;">Atlassian Cloud ID / Subdomain</label>
+                <div style="display: inline-flex; background: var(--bg-body); border-radius: 6px; padding: 2px; border: 1px solid var(--border-color); font-size: 11px;">
+                  <button type="button" id="cloud-mode-short-btn" class="btn btn-sm id-mode-btn active" style="padding: 3px 8px; font-size: 10.5px; border-radius: 4px; font-weight: 600;">Short Subdomain</button>
+                  <button type="button" id="cloud-mode-uuid-btn" class="btn btn-sm id-mode-btn" style="padding: 3px 8px; font-size: 10.5px; border-radius: 4px; font-weight: 600;">Long UUID</button>
+                </div>
+              </div>
+              <input type="text" id="api-cloud-id" class="form-input" placeholder="e.g. your-company" required>
               <div style="font-size: 11px; margin-top: 6px; color: var(--accent-color); display: flex; align-items: center; gap: 4px;">
                 <i class="fa-solid fa-circle-question"></i>
                 <span>Don't know your Cloud ID? <a href="#" id="find-cloud-id-link" target="_blank" style="color: var(--accent-color); font-weight: 600; text-decoration: underline;">Click here to find it instantly in your browser!</a></span>
               </div>
             </div>
+
             <div class="form-group">
-              <label data-i18n="workspace_id">Assets Workspace ID</label>
-              <input type="text" id="api-workspace-id" class="form-input" placeholder="e.g. 98765432-efgh-..." required>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+                <label data-i18n="workspace_id" style="margin-bottom: 0;">Assets Workspace ID</label>
+                <div style="display: inline-flex; background: var(--bg-body); border-radius: 6px; padding: 2px; border: 1px solid var(--border-color); font-size: 11px;">
+                  <button type="button" id="workspace-mode-short-btn" class="btn btn-sm id-mode-btn active" style="padding: 3px 8px; font-size: 10.5px; border-radius: 4px; font-weight: 600;">Short Schema ID</button>
+                  <button type="button" id="workspace-mode-uuid-btn" class="btn btn-sm id-mode-btn" style="padding: 3px 8px; font-size: 10.5px; border-radius: 4px; font-weight: 600;">Long UUID</button>
+                </div>
+              </div>
+              <input type="text" id="api-workspace-id" class="form-input" placeholder="e.g. 3 or 98765432-efgh-..." required>
               <div style="font-size: 11px; margin-top: 6px; color: var(--accent-color); display: flex; align-items: center; gap: 4px;">
                 <i class="fa-solid fa-circle-question"></i>
                 <span>Don't know your ID? <a href="#" id="find-workspace-id-link" target="_blank" style="color: var(--accent-color); font-weight: 600; text-decoration: underline;">Click here to find it instantly in your browser!</a></span>
