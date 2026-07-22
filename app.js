@@ -803,22 +803,18 @@ async function syncWithAtlassian() {
 
   // Stage 2: Auto-resolve Workspace ID if it is a schema ID (not a UUID)
   if (!isValidUUID(targetWorkspaceId)) {
-    console.log(`Workspace ID '${targetWorkspaceId}' is a Schema ID. Attempting auto-resolution...`);
-    updateConnectionUI("syncing", "Resolving Workspace ID...");
+    console.log(`Workspace ID '${targetWorkspaceId}' is a user-provided ID. Attempting background resolution while preserving user input...`);
     try {
       const originalSubdomain = !apiConfig.cloudId.includes("-") ? apiConfig.cloudId : (isSubdomain ? apiConfig.cloudId : null);
       const resolvedWorkspace = await resolveWorkspaceId(targetCloudId, originalSubdomain);
       if (resolvedWorkspace) {
-        console.log("Resolved Workspace ID UUID:", resolvedWorkspace);
-        targetWorkspaceId = resolvedWorkspace;
-        // Save back to state
-        apiConfig.workspaceId = resolvedWorkspace;
-        const workspaceInput = document.getElementById("api-workspace-id");
-        if (workspaceInput) workspaceInput.value = resolvedWorkspace;
-        saveState();
-        showToast("Workspace ID resolved automatically!", "success");
+        console.log("Background resolved Workspace UUID fallback:", resolvedWorkspace);
+        // Do NOT overwrite user's input field or apiConfig; preserve whatever ID the user typed!
       }
     } catch (err) {
+      console.warn("Background workspace resolution skipped:", err.message);
+    }
+  }
       console.error("Workspace ID resolution failed:", err.message);
       let diagMsg = "Could not resolve Schema ID to Atlassian Workspace UUID.";
       if (err.message.includes("401") || err.message.includes("unauthorized") || err.message.includes("Unauthorized")) {
@@ -2093,24 +2089,13 @@ function setupEventListeners() {
                  
                  if (statusStep) {
                    statusStep.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color: var(--accent-blue);"></i> Resolving secure Workspace UUID...`;
+                   resolveWorkspaceId(resolvedCloud, sub)
+                    .then(resolvedWorkspace => {
+                      if (statusStep) {
+                        statusStep.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--status-success);"></i> Configuration Resolved & Saved!`;
+                      }
+                    });
                  }
-                 
-                 resolveWorkspaceId(resolvedCloud, sub)
-                   .then(resolvedWorkspace => {
-                     if (resolvedWorkspace) {
-                       const workspaceInput = document.getElementById("api-workspace-id");
-                       if (workspaceInput) workspaceInput.value = resolvedWorkspace;
-                       apiConfig.workspaceId = resolvedWorkspace;
-                       saveState();
-                       showToast("Workspace ID resolved automatically!", "success");
-                       if (statusStep) {
-                         statusStep.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--status-success);"></i> Both UUIDs Resolved & Saved!`;
-                       }
-                     }
-                   })
-                   .catch(err => {
-                     console.log("Background Workspace ID auto-resolve bypassed (likely CORS block):", err);
-                   });
                }
              } else {
                console.warn("Could not resolve Cloud ID to a UUID. Subdomain set as fallback.");
