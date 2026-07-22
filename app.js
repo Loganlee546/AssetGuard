@@ -352,6 +352,14 @@ function updateConnectionUI(status, detailsMsg = "") {
           This happens when Atlassian can't find your Assets Workspace with the current IDs. Your <strong>Cloud ID</strong> or <strong>Workspace ID</strong> is mismatched.
         </p>
         
+        <div style="margin-top: 10px; background: rgba(255, 196, 0, 0.1); border: 1px solid #FFC400; border-radius: 6px; padding: 10px; font-size: 11px; line-height: 1.4; color: var(--text-primary);">
+          <strong style="color: #FFD600; display: flex; align-items: center; gap: 4px;">
+            <i class="fa-solid fa-triangle-exclamation"></i> CRITICAL: Do NOT copy the ID from your address bar!
+          </strong>
+          In your browser's address bar, Jira displays your <strong>Object Schema ID UUID</strong> (e.g. <code style="font-family: monospace; font-size: 10px; color: var(--accent-blue);">/object-schema/abc...</code>). 
+          <strong>This is NOT your Workspace ID!</strong> Using it will always trigger a 404 error. You must extract your true Workspace ID via the steps below.
+        </div>
+        
         <div style="margin-top: 12px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
           <div style="font-weight: 600; font-size: 12px; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 4px; display: flex; align-items: center; gap: 6px;">
             <i class="fa-solid fa-circle-check" style="color: var(--status-success);"></i> 5-Second Foolproof Solution:
@@ -366,7 +374,7 @@ function updateConnectionUI(status, detailsMsg = "") {
                 Copy the text in that page, paste it into the <strong>Magic Setup</strong> box below, and watch it configure your Cloud ID instantly!
               </li>
               <li>
-                <strong>Step 2: Extract Workspace ID</strong><br/>
+                <strong>Step 2: Extract TRUE Workspace ID</strong><br/>
                 Open <a href="https://${savedSub}.atlassian.net/rest/servicedeskapi/assets/workspace" target="_blank" style="color: var(--accent-blue); text-decoration: underline; font-weight: bold;">rest/servicedeskapi/assets/workspace</a>.<br/>
                 Copy the text in that page, paste it into the <strong>Magic Setup</strong> box below, and watch it configure your Workspace ID instantly!
               </li>
