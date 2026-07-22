@@ -863,7 +863,23 @@ async function syncWithAtlassian() {
     }
   }
 
-  // 2. High-speed Official public API Gateway paths (using resolved UUIDs)
+  // Retrieve saved subdomain or fallback
+  const sub = localStorage.getItem("assetGuard_subdomain") || (!apiConfig.cloudId.includes("-") ? apiConfig.cloudId : "");
+
+  // 2. Direct Subdomain API paths (Natively supports Basic Auth API Tokens!)
+  if (sub) {
+    const directPaths = [
+      `https://${sub}.atlassian.net/gateway/api/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`,
+      `https://${sub}.atlassian.net/rest/servicedeskapi/assets/workspace/${targetWorkspaceId}/v1/object/aql`,
+      `https://${sub}.atlassian.net/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`,
+      `https://${sub}.atlassian.net/rest/servicedesk/assets/1.0/object/aql`
+    ];
+    directPaths.forEach(p => {
+      if (!paths.includes(p)) paths.push(p);
+    });
+  }
+
+  // 3. Official OAuth Public API Gateway paths (using resolved UUIDs)
   if (targetCloudId && targetCloudId.includes("-")) {
     const p1 = `https://api.atlassian.com/ex/jira/${targetCloudId}/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`;
     const p2 = `https://api.atlassian.com/ex/jira/${targetCloudId}/assets/workspace/${targetWorkspaceId}/v1/object/aql`;
@@ -871,12 +887,7 @@ async function syncWithAtlassian() {
     if (!paths.includes(p2)) paths.push(p2);
   }
 
-  // 3. Fallbacks (only if direct UUID paths fail)
-  const originalSubdomainText = !apiConfig.cloudId.includes("-") ? apiConfig.cloudId : null;
-  if (originalSubdomainText) {
-    const p = `https://${originalSubdomainText}.atlassian.net/gateway/api/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`;
-    if (!paths.includes(p)) paths.push(p);
-  }
+  // 4. Global Fallbacks
   const pFallback = `https://api.atlassian.com/jsm/assets/workspace/${targetWorkspaceId}/v1/object/aql`;
   if (!paths.includes(pFallback)) paths.push(pFallback);
 
