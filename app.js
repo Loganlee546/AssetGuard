@@ -1866,6 +1866,37 @@ function switchDetailTab(tabId) {
     pane.classList.toggle("active", pane.id === `detail-pane-${tabId}`);
   });
 }
+
+// Global filter & UI helpers
+function filterByCategory(category, el) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  if (el) el.classList.add("active");
+  const moreSelect = document.getElementById("more-categories-select");
+  if (moreSelect) moreSelect.value = "";
+  activeCategory = category;
+  renderAssetList(true);
+}
+
+function filterByStatus(status, el) {
+  document.querySelectorAll(".filter-chip").forEach(b => b.classList.remove("active"));
+  if (el) el.classList.add("active");
+  activeStatus = status;
+  renderAssetList(true);
+}
+
+function toggleDarkMode() {
+  const themeBtn = document.getElementById("theme-toggle-btn");
+  if (document.body.getAttribute("data-theme") === "dark") {
+    document.body.removeAttribute("data-theme");
+    localStorage.setItem("assetGuard_theme", "light");
+    if (themeBtn) themeBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
+  } else {
+    document.body.setAttribute("data-theme", "dark");
+    localStorage.setItem("assetGuard_theme", "dark");
+    if (themeBtn) themeBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+  }
+}
+
 // Setup Event Listeners
 function setupEventListeners() {
   // Defensive helper to attach listeners safely
@@ -3179,6 +3210,19 @@ async function runConnectionTelemetry() {
   
   addLine("success", "Tracer diagnostics complete. Connection telemetry successfully analyzed.");
 }
+
+// Attach all global modal, filter, and theme functions directly to window object for reliable inline HTML onclick execution across all browsers
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.toggleDarkMode = toggleDarkMode;
+window.filterByCategory = filterByCategory;
+window.filterByStatus = filterByStatus;
+window.switchDetailTab = switchDetailTab;
+window.renderGlobalHistory = renderGlobalHistory;
+window.renderPeopleList = renderPeopleList;
+window.startCameraScanner = startCameraScanner;
+window.stopCameraScanner = stopCameraScanner;
+window.syncWithAtlassian = syncWithAtlassian;
 
 
 
