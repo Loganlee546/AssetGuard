@@ -2848,7 +2848,6 @@ function setupEventListeners() {
       prefillAddAssetForm(parsed);
     }
   });
-}
 
 // Start Camera Stream QR scan
 function startCameraScanner() {
