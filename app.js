@@ -358,7 +358,7 @@ function updateConnectionUI(status, detailsMsg = "") {
             <strong style="color: var(--text-primary);"><i class="fa-solid fa-shield-halved" style="color: var(--accent-purple);"></i> Fix Reason 1 (Plan / License):</strong><br/>
             If your site is on Jira Service Management Free/Standard, Assets REST APIs do not exist on Atlassian's servers. You can use instant Batch Import instead:
             <div style="margin-top: 6px; display: flex; gap: 8px;">
-              <button type="button" class="btn btn-secondary btn-sm" onclick="openModal('global-history-modal')" style="font-size: 11px; padding: 4px 10px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openModal('audit-modal')" style="font-size: 11px; padding: 4px 10px;">
                 <i class="fa-solid fa-file-import"></i> Open Batch CSV / JSON Importer
               </button>
             </div>
@@ -748,22 +748,6 @@ async function syncWithAtlassian() {
     showToast("Sync bypassed: Active Offline Mode.", "warning");
     return;
   }
-
-  // Refresh apiConfig directly from DOM input fields so Sync Now works instantly
-  const cloudEl = document.getElementById("api-cloud-id");
-  const workspaceEl = document.getElementById("api-workspace-id");
-  const emailEl = document.getElementById("api-email");
-  const tokenEl = document.getElementById("api-token");
-  const limitEl = document.getElementById("api-sync-limit");
-
-  if (cloudEl && cloudEl.value.trim()) apiConfig.cloudId = cloudEl.value.trim();
-  if (workspaceEl && workspaceEl.value.trim()) apiConfig.workspaceId = workspaceEl.value.trim();
-  if (emailEl && emailEl.value.trim()) apiConfig.email = emailEl.value.trim();
-  if (tokenEl && tokenEl.value.trim()) apiConfig.token = tokenEl.value.trim();
-  if (limitEl && limitEl.value) apiConfig.syncLimit = parseInt(limitEl.value) || 100;
-  
-  saveState();
-
   if (!apiConfig.cloudId || !apiConfig.workspaceId || !apiConfig.email || !apiConfig.token) {
     showToast(t("notif_sync_error").replace("{error}", "Missing API Config (Cloud ID, Workspace ID, Email, or Token)"), "error");
     openModal("settings-modal");
@@ -781,8 +765,8 @@ async function syncWithAtlassian() {
   }
 
   // Dynamic, schema-agnostic universal Atlassian Assets AQL query
-  const customAql = localStorage.getItem("assetGuard_aql_query");
-  const targetAqlQuery = (customAql && customAql.trim()) ? customAql.trim() : "id > 0";
+  // Using 'id > 0' is valid Atlassian AQL syntax that matches every single asset object in any workspace!
+  const targetAqlQuery = "id > 0";
   console.log("Compiled schema-agnostic universal AQL query:", targetAqlQuery);
 
   updateConnectionUI("syncing", t("sync_loading"));
@@ -1145,39 +1129,23 @@ async function syncWithAtlassian() {
 }
 
 function mapAtlassianObject(obj) {
-  const getAttr = (candidates) => {
+  const getAttr = (name) => {
     if (!obj.attributes) return "";
-    const candidateList = Array.isArray(candidates) ? candidates.map(c => c.toLowerCase()) : [candidates.toLowerCase()];
-    
-    // Find matching attribute by checking all candidate attribute names
-    const attr = obj.attributes.find(a => 
-      a.objectTypeAttribute && candidateList.includes(a.objectTypeAttribute.name.toLowerCase())
-    );
-    if (attr && attr.objectAttributeValues && attr.objectAttributeValues.length > 0) {
-      return attr.objectAttributeValues[0].displayValue || attr.objectAttributeValues[0].value || "";
-    }
-    return "";
+    const attr = obj.attributes.find(a => a.objectTypeAttribute && a.objectTypeAttribute.name.toLowerCase() === name.toLowerCase());
+    return attr && attr.objectAttributeValues && attr.objectAttributeValues.length > 0 ? attr.objectAttributeValues[0].displayValue : "";
   };
-
-  const detectedCategory = (obj.objectType && obj.objectType.name) ? obj.objectType.name : (getAttr(["Category", "Asset Category", "Object Type", "Device Type", "Type", "Kind"]) || "IT Asset");
-  const detectedModel = getAttr(["Model", "Model Name", "Hardware Model", "Device Model", "Item Name", "Brand", "Device", "Title"]) || obj.name || obj.label || "Standard Model";
-  const detectedStatus = getAttr(["Status", "State", "Lifecycle", "Asset Status", "Availability"]) || "Open";
-  const detectedOwner = getAttr(["Owner", "Assignee", "Assigned To", "User", "Custodian", "Employee", "Reporter"]) || "";
-  const detectedSerial = getAttr(["Serial Number", "Serial", "Serial No", "SerialNo", "S/N", "Asset Tag", "Tag", "Barcode", "Hardware ID", "Key"]) || obj.id || "N/A";
-  const detectedLocation = getAttr(["Location", "Site", "Office", "Building", "Facility", "Room", "Department"]) || "Corporate Office";
-  const detectedCondition = getAttr(["Condition", "Physical Condition", "Health", "Grade"]) || "Good";
 
   return {
     atlassianObjectId: obj.id, // Store original Jira Assets ID
-    id: obj.label || obj.name || obj.id,
+    id: obj.label || obj.id,
     name: obj.name || obj.label || obj.id,
-    model: detectedModel,
-    category: detectedCategory,
-    status: detectedStatus,
-    owner: detectedOwner,
-    condition: detectedCondition,
-    serial: detectedSerial,
-    location: detectedLocation,
+    model: getAttr("Model") || obj.name || "Standard Model",
+    category: (obj.objectType && obj.objectType.name) ? obj.objectType.name : (getAttr("Category") || "IT Asset"),
+    status: getAttr("Status") || "Open",
+    owner: getAttr("Owner") || "",
+    condition: "Good",
+    serial: getAttr("Serial Number") || getAttr("Serial") || "N/A",
+    location: getAttr("Location") || "Corporate Office",
     lastUpdated: new Date().toLocaleDateString(),
     history: [{
       date: new Date().toLocaleDateString(),
@@ -1186,10 +1154,10 @@ function mapAtlassianObject(obj) {
       note: "Synchronized from Atlassian Assets"
     }],
     specs: {
-      cpu: getAttr(["CPU", "Processor", "Processor Type", "Chip"]) || "---",
-      ram: getAttr(["RAM", "Memory", "RAM Size", "System Memory"]) || "---",
-      storage: getAttr(["Storage", "Hard Drive", "SSD", "HDD", "Disk"]) || "---",
-      os: getAttr(["OS", "Operating System", "OS Version", "System"]) || "---"
+      cpu: getAttr("CPU") || "---",
+      ram: getAttr("RAM") || "---",
+      storage: getAttr("Storage") || "---",
+      os: getAttr("OS") || "---"
     }
   };
 }
@@ -1866,37 +1834,6 @@ function switchDetailTab(tabId) {
     pane.classList.toggle("active", pane.id === `detail-pane-${tabId}`);
   });
 }
-
-// Global filter & UI helpers
-function filterByCategory(category, el) {
-  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-  if (el) el.classList.add("active");
-  const moreSelect = document.getElementById("more-categories-select");
-  if (moreSelect) moreSelect.value = "";
-  activeCategory = category;
-  renderAssetList(true);
-}
-
-function filterByStatus(status, el) {
-  document.querySelectorAll(".filter-chip").forEach(b => b.classList.remove("active"));
-  if (el) el.classList.add("active");
-  activeStatus = status;
-  renderAssetList(true);
-}
-
-function toggleDarkMode() {
-  const themeBtn = document.getElementById("theme-toggle-btn");
-  if (document.body.getAttribute("data-theme") === "dark") {
-    document.body.removeAttribute("data-theme");
-    localStorage.setItem("assetGuard_theme", "light");
-    if (themeBtn) themeBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
-  } else {
-    document.body.setAttribute("data-theme", "dark");
-    localStorage.setItem("assetGuard_theme", "dark");
-    if (themeBtn) themeBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
-  }
-}
-
 // Setup Event Listeners
 function setupEventListeners() {
   // Defensive helper to attach listeners safely
@@ -2016,16 +1953,15 @@ function setupEventListeners() {
 
   // Category tabs click
   on("category-tabs", "click", (e) => {
-    const btn = e.target.closest(".tab-btn");
-    if (btn) {
-      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
+    if (e.target.classList.contains("tab-btn")) {
+      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+      e.target.classList.add("active");
       
       // Reset the "More Categories..." select box
       const moreSelect = document.getElementById("more-categories-select");
       if (moreSelect) moreSelect.value = "";
       
-      activeCategory = btn.getAttribute("data-category");
+      activeCategory = e.target.getAttribute("data-category");
       renderAssetList(true);
     }
   });
@@ -2044,11 +1980,10 @@ function setupEventListeners() {
 
   // Status filters click
   on("status-filters", "click", (e) => {
-    const chip = e.target.closest(".filter-chip");
-    if (chip) {
+    if (e.target.classList.contains("filter-chip")) {
       document.querySelectorAll(".filter-chip").forEach(btn => btn.classList.remove("active"));
-      chip.classList.add("active");
-      activeStatus = chip.getAttribute("data-status");
+      e.target.classList.add("active");
+      activeStatus = e.target.getAttribute("data-status");
       renderAssetList(true);
     }
   });
@@ -2124,8 +2059,6 @@ function setupEventListeners() {
   on("settings-btn", "click", () => {
     const assistant = document.getElementById("magic-setup-assistant");
     if (assistant) assistant.style.display = "none";
-    const aqlInput = document.getElementById("api-aql-query");
-    if (aqlInput) aqlInput.value = localStorage.getItem("assetGuard_aql_query") || "";
     openModal("settings-modal");
   });
 
@@ -2497,13 +2430,6 @@ function setupEventListeners() {
       }
     }
 
-    const aqlInput = document.getElementById("api-aql-query");
-    if (aqlInput && aqlInput.value.trim()) {
-      localStorage.setItem("assetGuard_aql_query", aqlInput.value.trim());
-    } else {
-      localStorage.removeItem("assetGuard_aql_query");
-    }
-
     apiConfig = {
       cloudId: cloudIdInputVal,
       workspaceId: workspaceIdInputVal,
@@ -2533,7 +2459,6 @@ function setupEventListeners() {
     if (confirm(t("confirm_clear_all"))) { 
       apiConfig = { cloudId: "", workspaceId: "", email: "", token: "", syncLimit: 100 };
       saveState();
-      localStorage.removeItem("assetGuard_aql_query");
       localStorage.setItem("assetGuard_last_sync_status", "unconfigured");
       localStorage.setItem("assetGuard_last_sync_error", "");
       // Force UI update
@@ -2542,8 +2467,6 @@ function setupEventListeners() {
       document.getElementById("api-email").value = "";
       document.getElementById("api-token").value = "";
       document.getElementById("api-sync-limit").value = "100";
-      const aqlField = document.getElementById("api-aql-query");
-      if (aqlField) aqlField.value = "";
       
       const assistant = document.getElementById("magic-setup-assistant");
       if (assistant) assistant.style.display = "none";
@@ -2622,9 +2545,8 @@ function setupEventListeners() {
 
   // Detail Modal tab buttons click
   onSelector(".detail-tabs", "click", (e) => {
-    const tab = e.target.closest(".detail-tab");
-    if (tab) {
-      switchDetailTab(tab.getAttribute("data-tab"));
+    if (e.target.classList.contains("detail-tab")) {
+      switchDetailTab(e.target.getAttribute("data-tab"));
     }
   });
 
@@ -2879,6 +2801,7 @@ function setupEventListeners() {
       prefillAddAssetForm(parsed);
     }
   });
+}
 
 // Start Camera Stream QR scan
 function startCameraScanner() {
@@ -2994,15 +2917,11 @@ function openModal(modalId) {
     modal.classList.add("active");
     if (modalId === "settings-modal") {
       const cloudIdInput = document.getElementById("api-cloud-id");
-      if (cloudIdInput) cloudIdInput.value = apiConfig.cloudId || "";
-      const wsInput = document.getElementById("api-workspace-id");
-      if (wsInput) wsInput.value = apiConfig.workspaceId || "";
-      const emailInput = document.getElementById("api-email");
-      if (emailInput) emailInput.value = apiConfig.email || "";
-      const tokenInput = document.getElementById("api-token");
-      if (tokenInput) tokenInput.value = apiConfig.token || "";
-      const limitInput = document.getElementById("api-sync-limit");
-      if (limitInput) limitInput.value = apiConfig.syncLimit || "100";
+      cloudIdInput.value = apiConfig.cloudId || "";
+      document.getElementById("api-workspace-id").value = apiConfig.workspaceId || "";
+      document.getElementById("api-email").value = apiConfig.email || "";
+      document.getElementById("api-token").value = apiConfig.token || "";
+      document.getElementById("api-sync-limit").value = apiConfig.syncLimit || "100";
 
       // Populate Offline Mode toggle
       const offlineToggle = document.getElementById("offline-mode-toggle");
@@ -3015,11 +2934,14 @@ function openModal(modalId) {
         };
       }
 
+
+
       // Function to dynamically update the help links
       const updateHelpLinks = () => {
-        let val = cloudIdInput ? cloudIdInput.value.trim() : "";
-        let savedSub = localStorage.getItem("assetGuard_subdomain") || "smm-sandbox";
-        let subdomain = (val && !isValidUUID(val)) ? val : savedSub;
+        let subdomain = cloudIdInput.value.trim() || "smm-sandbox";
+        if (subdomain.includes("-")) {
+          subdomain = "smm-sandbox"; // Fallback to their known subdomain if they entered a resolved UUID
+        }
         
         const workspaceLink = document.getElementById("find-workspace-id-link");
         if (workspaceLink) {
@@ -3034,7 +2956,7 @@ function openModal(modalId) {
       
       // Initialize on modal open and watch for typing changes
       updateHelpLinks();
-      if (cloudIdInput) cloudIdInput.oninput = updateHelpLinks;
+      cloudIdInput.oninput = updateHelpLinks;
       
       // Render/Fades elements as per current offline mode state
       toggleOfflineUI(isOfflineMode);
@@ -3042,10 +2964,7 @@ function openModal(modalId) {
   }
 }
 function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    modal.classList.remove("active");
-  }
+  document.getElementById(modalId).classList.remove("active");
 }
 
 // Theme Toggle & Connection Features Initial State Loader
@@ -3210,19 +3129,6 @@ async function runConnectionTelemetry() {
   
   addLine("success", "Tracer diagnostics complete. Connection telemetry successfully analyzed.");
 }
-
-// Attach all global modal, filter, and theme functions directly to window object for reliable inline HTML onclick execution across all browsers
-window.openModal = openModal;
-window.closeModal = closeModal;
-window.toggleDarkMode = toggleDarkMode;
-window.filterByCategory = filterByCategory;
-window.filterByStatus = filterByStatus;
-window.switchDetailTab = switchDetailTab;
-window.renderGlobalHistory = renderGlobalHistory;
-window.renderPeopleList = renderPeopleList;
-window.startCameraScanner = startCameraScanner;
-window.stopCameraScanner = stopCameraScanner;
-window.syncWithAtlassian = syncWithAtlassian;
 
 
 

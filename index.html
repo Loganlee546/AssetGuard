@@ -12,7 +12,7 @@
   <header>
     <div class="header-container">
       <div class="header-actions">
-        <button id="settings-btn" class="btn btn-secondary" aria-label="Settings" onclick="openModal('settings-modal')">
+        <button id="settings-btn" class="btn btn-secondary" aria-label="Settings">
           <i class="fa-solid fa-gear"></i>
         </button>
         <button id="lang-toggle-btn" class="btn btn-secondary">EN / ES</button>
@@ -51,16 +51,16 @@
       </div>
       <div class="controls-actions">
         <div class="main-controls">
-          <button id="add-asset-btn" class="btn btn-primary" onclick="openModal('add-asset-modal')">
+          <button id="add-asset-btn" class="btn btn-primary">
             <i class="fa-solid fa-plus"></i> <span data-i18n="add_asset">Add Asset</span>
           </button>
-          <button id="scan-qr-btn" class="btn btn-secondary" onclick="openModal('scanner-modal'); startCameraScanner();">
+          <button id="scan-qr-btn" class="btn btn-secondary">
             <i class="fa-solid fa-qrcode"></i> <span data-i18n="scan_qr">Scan QR Code</span>
           </button>
-          <button id="people-directory-trigger-btn" class="btn btn-secondary" onclick="openModal('people-directory-modal'); renderPeopleList();">
+          <button id="people-directory-trigger-btn" class="btn btn-secondary">
             <i class="fa-solid fa-users"></i> <span data-i18n="people">People</span>
           </button>
-          <button id="global-history-btn" class="btn btn-secondary" onclick="openModal('global-history-modal'); renderGlobalHistory();">
+          <button id="global-history-btn" class="btn btn-secondary">
             <i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="history_title">Audit History</span>
           </button>
         </div>
@@ -68,11 +68,11 @@
     </div>
 
     <div class="category-tabs" id="category-tabs" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px;">
-      <button class="tab-btn active" data-category="All" data-i18n="all_categories" onclick="filterByCategory('All', this)">All Categories</button>
-      <button class="tab-btn" data-category="Laptop" data-i18n="laptop" onclick="filterByCategory('Laptop', this)">Laptops</button>
-      <button class="tab-btn" data-category="Monitor" data-i18n="monitor" onclick="filterByCategory('Monitor', this)">Monitors</button>
-      <button class="tab-btn" data-category="Projector" data-i18n="projector" onclick="filterByCategory('Projector', this)">Projectors</button>
-      <button class="tab-btn" data-category="Printer" data-i18n="printer" onclick="filterByCategory('Printer', this)">Printers</button>
+      <button class="tab-btn active" data-category="All" data-i18n="all_categories">All Categories</button>
+      <button class="tab-btn" data-category="Laptop" data-i18n="laptop">Laptops</button>
+      <button class="tab-btn" data-category="Monitor" data-i18n="monitor">Monitors</button>
+      <button class="tab-btn" data-category="Projector" data-i18n="projector">Projectors</button>
+      <button class="tab-btn" data-category="Printer" data-i18n="printer">Printers</button>
       
       <!-- Custom select dropdown for the remaining 25+ categories -->
       <div style="position: relative; display: inline-block;">
@@ -111,10 +111,10 @@
     </div>
 
     <div class="status-filters" id="status-filters">
-      <button class="filter-chip active" data-status="All" data-i18n="all_assets" onclick="filterByStatus('All', this)">All Status</button>
-      <button class="filter-chip" data-status="Open" data-i18n="status_open" onclick="filterByStatus('Open', this)">Available</button>
-      <button class="filter-chip" data-status="Owned" data-i18n="status_owned" onclick="filterByStatus('Owned', this)">In Use</button>
-      <button class="filter-chip" data-status="Not Working" data-i18n="status_not_working" onclick="filterByStatus('Not Working', this)">Broken</button>
+      <button class="filter-chip active" data-status="All" data-i18n="all_assets">All Status</button>
+      <button class="filter-chip" data-status="Open" data-i18n="status_open">Available</button>
+      <button class="filter-chip" data-status="Owned" data-i18n="status_owned">In Use</button>
+      <button class="filter-chip" data-status="Not Working" data-i18n="status_not_working">Broken</button>
     </div>
 
     <div id="results-counter" style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;"></div>
@@ -144,7 +144,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h2 id="details-modal-title">ASSET-ID</h2>
-        <button id="details-close-btn" class="modal-close-btn" onclick="closeModal('details-modal')">&times;</button>
+        <button id="details-close-btn" class="modal-close-btn">&times;</button>
       </div>
       <div class="detail-tabs">
         <button class="detail-tab active" data-tab="overview" data-i18n="details">Overview</button>
@@ -232,7 +232,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h2 data-i18n="add_asset">Add Asset</h2>
-        <button id="add-asset-close-btn" class="modal-close-btn" onclick="closeModal('add-asset-modal')">&times;</button>
+        <button id="add-asset-close-btn" class="modal-close-btn">&times;</button>
       </div>
       <div class="modal-body">
         <form id="add-asset-form">
@@ -317,7 +317,7 @@
     <div class="modal-content" style="max-width: 450px;">
       <div class="modal-header">
         <h2 data-i18n="modal_scan_title">QR Scanner</h2>
-        <button id="scanner-close-btn" class="modal-close-btn" onclick="closeModal('scanner-modal'); stopCameraScanner();">&times;</button>
+        <button id="scanner-close-btn" class="modal-close-btn">&times;</button>
       </div>
       <div class="modal-body">
         <div class="scanner-container">
@@ -340,7 +340,7 @@
     <div class="modal-content" style="max-width: 500px;">
       <div class="modal-header">
         <h2 data-i18n="people">People</h2>
-        <button id="people-directory-close-btn" class="modal-close-btn" onclick="closeModal('people-directory-modal')">&times;</button>
+        <button id="people-directory-close-btn" class="modal-close-btn">&times;</button>
       </div>
       <div class="modal-body">
         <div class="search-container" style="max-width: 100%; margin-bottom: 16px;">
@@ -357,7 +357,7 @@
     <div class="modal-content" style="max-width: 600px;">
       <div class="modal-header">
         <h2 id="user-profile-name">User Profile</h2>
-        <button id="user-profile-close-btn" class="modal-close-btn" onclick="closeModal('user-profile-modal')">&times;</button>
+        <button id="user-profile-close-btn" class="modal-close-btn">&times;</button>
       </div>
       <div class="modal-body">
         <div id="user-profile-stats" style="margin-bottom: 16px; font-weight: 600; color: var(--text-muted);"></div>
@@ -374,7 +374,7 @@
     <div class="modal-content" style="max-width: 800px;">
       <div class="modal-header">
         <h2 data-i18n="global_history_title">Audit Log</h2>
-        <button id="global-history-close-btn" class="modal-close-btn" onclick="closeModal('global-history-modal')">&times;</button>
+        <button id="global-history-close-btn" class="modal-close-btn">&times;</button>
       </div>
       <div class="modal-body">
         <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
@@ -404,7 +404,7 @@
           <button id="settings-help-btn" class="btn btn-secondary btn-sm" style="padding: 6px 12px; background: var(--accent-purple); color: white; border: none; font-weight: bold; border-radius: 8px;">
             <i class="fa-solid fa-circle-question"></i> <span data-i18n="btn_help">Help</span>
           </button>
-          <button id="settings-close-btn" class="modal-close-btn" onclick="closeModal('settings-modal')">&times;</button>
+          <button id="settings-close-btn" class="modal-close-btn">&times;</button>
         </div>
       </div>
       <div class="modal-body">
@@ -501,11 +501,6 @@
               <input type="password" id="api-token" class="form-input" placeholder="Enter your API Token" required>
             </div>
             <div class="form-group">
-              <label>AQL Asset Filter (Optional)</label>
-              <input type="text" id="api-aql-query" class="form-input" placeholder="e.g. id > 0 or objectSchemaId = 3">
-              <div style="font-size: 11px; margin-top: 4px; color: var(--text-muted);">Default: <code>id &gt; 0</code> (syncs all asset objects across schemas).</div>
-            </div>
-            <div class="form-group">
               <label>Maximum Sync Limit</label>
               <select id="api-sync-limit" class="form-select">
                 <option value="50">50 assets (Fastest)</option>
@@ -538,14 +533,14 @@
 
   <div id="toast-container"></div>
 
-  <button id="theme-toggle-btn" class="theme-toggle-fixed" aria-label="Toggle Dark Mode" onclick="toggleDarkMode()">
+  <button id="theme-toggle-btn" class="theme-toggle-fixed" aria-label="Toggle Dark Mode">
     <i class="fa-solid fa-moon"></i>
   </button>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <!-- Floating Help Button -->
-  <button id="floating-help-btn" class="floating-btn" title="App Guide" onclick="openModal('app-guide-modal')">
+  <button id="floating-help-btn" class="floating-btn" title="App Guide">
     <i class="fa-solid fa-question"></i>
   </button>
 
@@ -554,7 +549,7 @@
     <div class="modal-content" style="max-width: 500px;">
       <div class="modal-header">
         <h2 data-i18n="modal_guide_title">App Guide</h2>
-        <button id="guide-close-btn" class="modal-close-btn" onclick="closeModal('app-guide-modal')">&times;</button>
+        <button id="guide-close-btn" class="modal-close-btn">&times;</button>
       </div>
       <div class="modal-body">
         <div class="guide-item">
@@ -594,6 +589,6 @@
 
   <script src="assets.js"></script>
   <script src="translations.js"></script>
-  <script src="app.js?v=2.3"></script>
+  <script src="app.js?v=2.1"></script>
 </body>
 </html>
