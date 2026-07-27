@@ -1985,15 +1985,16 @@ function setupEventListeners() {
 
   // Category tabs click
   on("category-tabs", "click", (e) => {
-    if (e.target.classList.contains("tab-btn")) {
-      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-      e.target.classList.add("active");
+    const btn = e.target.closest(".tab-btn");
+    if (btn) {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
       
       // Reset the "More Categories..." select box
       const moreSelect = document.getElementById("more-categories-select");
       if (moreSelect) moreSelect.value = "";
       
-      activeCategory = e.target.getAttribute("data-category");
+      activeCategory = btn.getAttribute("data-category");
       renderAssetList(true);
     }
   });
@@ -2012,10 +2013,11 @@ function setupEventListeners() {
 
   // Status filters click
   on("status-filters", "click", (e) => {
-    if (e.target.classList.contains("filter-chip")) {
+    const chip = e.target.closest(".filter-chip");
+    if (chip) {
       document.querySelectorAll(".filter-chip").forEach(btn => btn.classList.remove("active"));
-      e.target.classList.add("active");
-      activeStatus = e.target.getAttribute("data-status");
+      chip.classList.add("active");
+      activeStatus = chip.getAttribute("data-status");
       renderAssetList(true);
     }
   });
@@ -2589,8 +2591,9 @@ function setupEventListeners() {
 
   // Detail Modal tab buttons click
   onSelector(".detail-tabs", "click", (e) => {
-    if (e.target.classList.contains("detail-tab")) {
-      switchDetailTab(e.target.getAttribute("data-tab"));
+    const tab = e.target.closest(".detail-tab");
+    if (tab) {
+      switchDetailTab(tab.getAttribute("data-tab"));
     }
   });
 
@@ -2982,10 +2985,9 @@ function openModal(modalId) {
 
       // Function to dynamically update the help links
       const updateHelpLinks = () => {
-        let subdomain = cloudIdInput.value.trim() || "smm-sandbox";
-        if (subdomain.includes("-")) {
-          subdomain = "smm-sandbox"; // Fallback to their known subdomain if they entered a resolved UUID
-        }
+        let val = cloudIdInput.value.trim();
+        let savedSub = localStorage.getItem("assetGuard_subdomain") || "smm-sandbox";
+        let subdomain = (val && !isValidUUID(val)) ? val : savedSub;
         
         const workspaceLink = document.getElementById("find-workspace-id-link");
         if (workspaceLink) {

@@ -481,7 +481,6 @@ main {
   color: var(--text-muted);
 }
 
-/* Modals */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -492,12 +491,14 @@ main {
   justify-content: center;
   visibility: hidden;
   opacity: 0;
+  pointer-events: none;
   transition: all 0.2s;
 }
 
 .modal-overlay.active {
   visibility: visible;
   opacity: 1;
+  pointer-events: auto;
 }
 
 .modal-content {
