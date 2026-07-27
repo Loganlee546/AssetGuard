@@ -358,7 +358,7 @@ function updateConnectionUI(status, detailsMsg = "") {
             <strong style="color: var(--text-primary);"><i class="fa-solid fa-shield-halved" style="color: var(--accent-purple);"></i> Fix Reason 1 (Plan / License):</strong><br/>
             If your site is on Jira Service Management Free/Standard, Assets REST APIs do not exist on Atlassian's servers. You can use instant Batch Import instead:
             <div style="margin-top: 6px; display: flex; gap: 8px;">
-              <button type="button" class="btn btn-secondary btn-sm" onclick="openModal('audit-modal')" style="font-size: 11px; padding: 4px 10px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openModal('global-history-modal')" style="font-size: 11px; padding: 4px 10px;">
                 <i class="fa-solid fa-file-import"></i> Open Batch CSV / JSON Importer
               </button>
             </div>
@@ -748,6 +748,22 @@ async function syncWithAtlassian() {
     showToast("Sync bypassed: Active Offline Mode.", "warning");
     return;
   }
+
+  // Refresh apiConfig directly from DOM input fields so Sync Now works instantly
+  const cloudEl = document.getElementById("api-cloud-id");
+  const workspaceEl = document.getElementById("api-workspace-id");
+  const emailEl = document.getElementById("api-email");
+  const tokenEl = document.getElementById("api-token");
+  const limitEl = document.getElementById("api-sync-limit");
+
+  if (cloudEl && cloudEl.value.trim()) apiConfig.cloudId = cloudEl.value.trim();
+  if (workspaceEl && workspaceEl.value.trim()) apiConfig.workspaceId = workspaceEl.value.trim();
+  if (emailEl && emailEl.value.trim()) apiConfig.email = emailEl.value.trim();
+  if (tokenEl && tokenEl.value.trim()) apiConfig.token = tokenEl.value.trim();
+  if (limitEl && limitEl.value) apiConfig.syncLimit = parseInt(limitEl.value) || 100;
+  
+  saveState();
+
   if (!apiConfig.cloudId || !apiConfig.workspaceId || !apiConfig.email || !apiConfig.token) {
     showToast(t("notif_sync_error").replace("{error}", "Missing API Config (Cloud ID, Workspace ID, Email, or Token)"), "error");
     openModal("settings-modal");
