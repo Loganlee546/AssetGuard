@@ -2964,11 +2964,15 @@ function openModal(modalId) {
     modal.classList.add("active");
     if (modalId === "settings-modal") {
       const cloudIdInput = document.getElementById("api-cloud-id");
-      cloudIdInput.value = apiConfig.cloudId || "";
-      document.getElementById("api-workspace-id").value = apiConfig.workspaceId || "";
-      document.getElementById("api-email").value = apiConfig.email || "";
-      document.getElementById("api-token").value = apiConfig.token || "";
-      document.getElementById("api-sync-limit").value = apiConfig.syncLimit || "100";
+      if (cloudIdInput) cloudIdInput.value = apiConfig.cloudId || "";
+      const wsInput = document.getElementById("api-workspace-id");
+      if (wsInput) wsInput.value = apiConfig.workspaceId || "";
+      const emailInput = document.getElementById("api-email");
+      if (emailInput) emailInput.value = apiConfig.email || "";
+      const tokenInput = document.getElementById("api-token");
+      if (tokenInput) tokenInput.value = apiConfig.token || "";
+      const limitInput = document.getElementById("api-sync-limit");
+      if (limitInput) limitInput.value = apiConfig.syncLimit || "100";
 
       // Populate Offline Mode toggle
       const offlineToggle = document.getElementById("offline-mode-toggle");
@@ -2981,11 +2985,9 @@ function openModal(modalId) {
         };
       }
 
-
-
       // Function to dynamically update the help links
       const updateHelpLinks = () => {
-        let val = cloudIdInput.value.trim();
+        let val = cloudIdInput ? cloudIdInput.value.trim() : "";
         let savedSub = localStorage.getItem("assetGuard_subdomain") || "smm-sandbox";
         let subdomain = (val && !isValidUUID(val)) ? val : savedSub;
         
@@ -3002,7 +3004,7 @@ function openModal(modalId) {
       
       // Initialize on modal open and watch for typing changes
       updateHelpLinks();
-      cloudIdInput.oninput = updateHelpLinks;
+      if (cloudIdInput) cloudIdInput.oninput = updateHelpLinks;
       
       // Render/Fades elements as per current offline mode state
       toggleOfflineUI(isOfflineMode);
@@ -3010,7 +3012,10 @@ function openModal(modalId) {
   }
 }
 function closeModal(modalId) {
-  document.getElementById(modalId).classList.remove("active");
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove("active");
+  }
 }
 
 // Theme Toggle & Connection Features Initial State Loader
