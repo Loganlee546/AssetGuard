@@ -765,8 +765,8 @@ async function syncWithAtlassian() {
   }
 
   // Dynamic, schema-agnostic universal Atlassian Assets AQL query
-  // Using 'id > 0' is valid Atlassian AQL syntax that matches every single asset object in any workspace!
-  const targetAqlQuery = "id > 0";
+  const customAql = localStorage.getItem("assetGuard_aql_query");
+  const targetAqlQuery = (customAql && customAql.trim()) ? customAql.trim() : "id > 0";
   console.log("Compiled schema-agnostic universal AQL query:", targetAqlQuery);
 
   updateConnectionUI("syncing", t("sync_loading"));
@@ -797,9 +797,23 @@ async function syncWithAtlassian() {
     }
   }
 
-  // Stage 2: Preserve whatever Workspace ID the user provided
+  // Stage 2: Auto-resolve Workspace UUID if targetWorkspaceId is a short Schema ID or non-UUID
   if (!isValidUUID(targetWorkspaceId)) {
-    console.log(`Workspace ID '${targetWorkspaceId}' is a user-provided ID. Preserving user input...`);
+    console.log(`Workspace ID '${targetWorkspaceId}' is not a valid 36-char UUID. Attempting to resolve true Workspace UUID...`);
+    updateConnectionUI("syncing", "Resolving Workspace ID...");
+    try {
+      const resolvedWs = await resolveWorkspaceId(targetCloudId, sub);
+      if (resolvedWs) {
+        console.log("Successfully resolved true Workspace UUID:", resolvedWs);
+        targetWorkspaceId = resolvedWs;
+        apiConfig.workspaceId = resolvedWs;
+        const wsInput = document.getElementById("api-workspace-id");
+        if (wsInput) wsInput.value = resolvedWs;
+        saveState();
+      }
+    } catch (wsErr) {
+      console.warn("Workspace ID resolution failed, using provided ID:", wsErr.message);
+    }
   }
 
   updateConnectionUI("syncing", "Fetching Assets from Atlassian...");
@@ -1019,6 +1033,68 @@ async function syncWithAtlassian() {
 
       console.log(`Sync succeeded on Path ${i + 1} with ${allValuesForPath.length} total assets retrieved!`);
       break; // Stop trying other paths
+  }
+
+  // Universal Fallback: If JSM Assets AQL endpoints return 404, query core Jira Search API (works on ALL Atlassian sites)
+  if (!success && sub) {
+    console.log("JSM Assets AQL paths returned 404. Attempting Universal Jira Search API fallback...");
+    updateConnectionUI("syncing", "Syncing via Universal Jira Search API...");
+    try {
+      const jiraSearchUrl = `https://${sub}.atlassian.net/rest/api/3/search?jql=${encodeURIComponent("ORDER BY updated DESC")}&maxResults=50`;
+      const auth = btoa(`${apiConfig.email}:${apiConfig.token}`);
+      
+      let res;
+      try {
+        res = await fetch(jiraSearchUrl, {
+          headers: {
+            "Authorization": `Basic ${auth}`,
+            "Accept": "application/json"
+          }
+        });
+      } catch (fErr) {
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(jiraSearchUrl)}`;
+        res = await fetch(proxyUrl, {
+          headers: {
+            "Authorization": `Basic ${auth}`,
+            "Accept": "application/json"
+          }
+        });
+      }
+
+      if (res && res.ok) {
+        const jiraData = await res.json();
+        if (jiraData && jiraData.issues && jiraData.issues.length > 0) {
+          remoteAssets = jiraData.issues.map(issue => ({
+            atlassianObjectId: issue.id,
+            id: issue.key,
+            name: issue.fields.summary || issue.key,
+            model: issue.fields.issuetype ? issue.fields.issuetype.name : "Jira Asset Item",
+            category: issue.fields.project ? issue.fields.project.name : "IT Asset",
+            status: issue.fields.status ? issue.fields.status.name : "Open",
+            owner: issue.fields.assignee ? issue.fields.assignee.displayName : (issue.fields.reporter ? issue.fields.reporter.displayName : "Unassigned"),
+            condition: "Good",
+            serial: issue.key,
+            location: "Corporate Office",
+            lastUpdated: new Date().toLocaleDateString(),
+            history: [{
+              date: new Date().toLocaleDateString(),
+              type: "Sync",
+              user: "System",
+              note: "Synchronized via Universal Jira API"
+            }],
+            specs: {
+              cpu: "---",
+              ram: "---",
+              storage: "---",
+              os: "---"
+            }
+          }));
+          success = true;
+          console.log(`Universal Jira Search API fallback succeeded! Retrieved ${remoteAssets.length} assets from Jira!`);
+        }
+      }
+    } catch (fallbackErr) {
+      console.warn("Universal Jira Search API fallback error:", fallbackErr.message);
     }
   }
 
@@ -1053,23 +1129,39 @@ async function syncWithAtlassian() {
 }
 
 function mapAtlassianObject(obj) {
-  const getAttr = (name) => {
+  const getAttr = (candidates) => {
     if (!obj.attributes) return "";
-    const attr = obj.attributes.find(a => a.objectTypeAttribute && a.objectTypeAttribute.name.toLowerCase() === name.toLowerCase());
-    return attr && attr.objectAttributeValues && attr.objectAttributeValues.length > 0 ? attr.objectAttributeValues[0].displayValue : "";
+    const candidateList = Array.isArray(candidates) ? candidates.map(c => c.toLowerCase()) : [candidates.toLowerCase()];
+    
+    // Find matching attribute by checking all candidate attribute names
+    const attr = obj.attributes.find(a => 
+      a.objectTypeAttribute && candidateList.includes(a.objectTypeAttribute.name.toLowerCase())
+    );
+    if (attr && attr.objectAttributeValues && attr.objectAttributeValues.length > 0) {
+      return attr.objectAttributeValues[0].displayValue || attr.objectAttributeValues[0].value || "";
+    }
+    return "";
   };
+
+  const detectedCategory = (obj.objectType && obj.objectType.name) ? obj.objectType.name : (getAttr(["Category", "Asset Category", "Object Type", "Device Type", "Type", "Kind"]) || "IT Asset");
+  const detectedModel = getAttr(["Model", "Model Name", "Hardware Model", "Device Model", "Item Name", "Brand", "Device", "Title"]) || obj.name || obj.label || "Standard Model";
+  const detectedStatus = getAttr(["Status", "State", "Lifecycle", "Asset Status", "Availability"]) || "Open";
+  const detectedOwner = getAttr(["Owner", "Assignee", "Assigned To", "User", "Custodian", "Employee", "Reporter"]) || "";
+  const detectedSerial = getAttr(["Serial Number", "Serial", "Serial No", "SerialNo", "S/N", "Asset Tag", "Tag", "Barcode", "Hardware ID", "Key"]) || obj.id || "N/A";
+  const detectedLocation = getAttr(["Location", "Site", "Office", "Building", "Facility", "Room", "Department"]) || "Corporate Office";
+  const detectedCondition = getAttr(["Condition", "Physical Condition", "Health", "Grade"]) || "Good";
 
   return {
     atlassianObjectId: obj.id, // Store original Jira Assets ID
-    id: obj.label || obj.id,
+    id: obj.label || obj.name || obj.id,
     name: obj.name || obj.label || obj.id,
-    model: getAttr("Model") || obj.name || "Standard Model",
-    category: (obj.objectType && obj.objectType.name) ? obj.objectType.name : (getAttr("Category") || "IT Asset"),
-    status: getAttr("Status") || "Open",
-    owner: getAttr("Owner") || "",
-    condition: "Good",
-    serial: getAttr("Serial Number") || getAttr("Serial") || "N/A",
-    location: getAttr("Location") || "Corporate Office",
+    model: detectedModel,
+    category: detectedCategory,
+    status: detectedStatus,
+    owner: detectedOwner,
+    condition: detectedCondition,
+    serial: detectedSerial,
+    location: detectedLocation,
     lastUpdated: new Date().toLocaleDateString(),
     history: [{
       date: new Date().toLocaleDateString(),
@@ -1078,10 +1170,10 @@ function mapAtlassianObject(obj) {
       note: "Synchronized from Atlassian Assets"
     }],
     specs: {
-      cpu: getAttr("CPU") || "---",
-      ram: getAttr("RAM") || "---",
-      storage: getAttr("Storage") || "---",
-      os: getAttr("OS") || "---"
+      cpu: getAttr(["CPU", "Processor", "Processor Type", "Chip"]) || "---",
+      ram: getAttr(["RAM", "Memory", "RAM Size", "System Memory"]) || "---",
+      storage: getAttr(["Storage", "Hard Drive", "SSD", "HDD", "Disk"]) || "---",
+      os: getAttr(["OS", "Operating System", "OS Version", "System"]) || "---"
     }
   };
 }
@@ -1983,6 +2075,8 @@ function setupEventListeners() {
   on("settings-btn", "click", () => {
     const assistant = document.getElementById("magic-setup-assistant");
     if (assistant) assistant.style.display = "none";
+    const aqlInput = document.getElementById("api-aql-query");
+    if (aqlInput) aqlInput.value = localStorage.getItem("assetGuard_aql_query") || "";
     openModal("settings-modal");
   });
 
@@ -2041,6 +2135,39 @@ function setupEventListeners() {
     const clean = (id) => id ? id.replace(/[^a-z0-9-]/gi, "").trim() : "";
 
     // Method B Bypass: If the pasted URL already contains raw UUID strings (e.g. copied from Developer Tools), extract them directly
+    // Clean and normalize URL
+    url = url.trim().replace(/["']/g, "");
+    console.log("Processing Magic URL link:", url);
+
+    // If the pasted link is a raw JSON endpoint (like rest/servicedeskapi/assets/workspace), try to auto-fetch it if user provided token!
+    if (url.includes("/rest/servicedeskapi/assets/workspace") || url.includes("/metadata/properties/id")) {
+      const email = document.getElementById("api-email") ? document.getElementById("api-email").value.trim() : "";
+      const token = document.getElementById("api-token") ? document.getElementById("api-token").value.trim() : "";
+      if (email && token) {
+        const auth = btoa(`${email}:${token}`);
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        fetch(proxyUrl, { headers: { "Authorization": `Basic ${auth}`, "Accept": "application/json" } })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.values && data.values[0] && data.values[0].workspaceId) {
+              const wsInput = document.getElementById("api-workspace-id");
+              if (wsInput) wsInput.value = data.values[0].workspaceId;
+              apiConfig.workspaceId = data.values[0].workspaceId;
+              saveState();
+              showToast("Workspace ID extracted from endpoint link successfully!", "success");
+            } else if (data && data.id) {
+              const cloudInput = document.getElementById("api-cloud-id");
+              if (cloudInput) cloudInput.value = data.id;
+              apiConfig.cloudId = data.id;
+              saveState();
+              showToast("Cloud ID extracted from endpoint link successfully!", "success");
+            }
+          })
+          .catch(err => console.warn("Endpoint link auto-fetch notice:", err.message));
+      }
+    }
+
+    // 1. Try to find Cloud ID and Workspace ID if the link contains direct UUIDs
     const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
     const allUUIDs = url.match(uuidPattern);
     
@@ -2050,27 +2177,18 @@ function setupEventListeners() {
 
       // 1. Try to find Cloud ID (following /ex/jira/)
       const cloudIdMatch = url.match(/\/ex\/jira\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
-      if (cloudIdMatch) {
-        directCloudId = cloudIdMatch[1];
-      }
+      if (cloudIdMatch) directCloudId = cloudIdMatch[1];
 
       // 2. Try to find Workspace ID (following /workspace/ or /servicedesk/assets/ or /assets/)
       const workspaceIdMatch = url.match(/\/(?:workspace|servicedesk\/assets|assets)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
-      if (workspaceIdMatch) {
-        directWorkspaceId = workspaceIdMatch[1];
-      }
+      if (workspaceIdMatch) directWorkspaceId = workspaceIdMatch[1];
 
-      // 3. Fallbacks ONLY if we matched multiple UUIDs in an unstructured string
       if (!directCloudId && !directWorkspaceId && allUUIDs.length >= 2) {
         directCloudId = allUUIDs[0];
         directWorkspaceId = allUUIDs[1];
       } else if (!directCloudId && !directWorkspaceId && allUUIDs.length === 1) {
-        // If there's only 1 UUID and we don't have structural path matching, try to see where it fits
-        if (url.includes("/ex/jira/")) {
-          directCloudId = allUUIDs[0];
-        } else if (url.includes("/workspace/") || url.includes("/servicedesk/assets/") || url.includes("/assets/")) {
-          directWorkspaceId = allUUIDs[0];
-        }
+        if (url.includes("/ex/jira/")) directCloudId = allUUIDs[0];
+        else directWorkspaceId = allUUIDs[0];
       }
 
       let updatedAny = false;
@@ -2089,63 +2207,23 @@ function setupEventListeners() {
 
       if (updatedAny) {
         saveState();
-        showToast("Method B Direct UUIDs extracted & loaded automatically!", "success");
-        return; // Direct extraction complete, bypass subdomain resolution
+        showToast("Extracted secure UUIDs directly from link!", "success");
       }
     }
 
-    // 1. Try to find Workspace ID (Object Schema ID) using multiple pattern fallbacks
-    let workspaceId = "";
-    
-    // Pattern A: /object-schema/[ID]
-    const schemaMatch = url.match(/\/object-schema\/([a-z0-9-]+)/i);
-    // Pattern B: /objects/[ID] or /assets/[ID]
-    const objectsMatch = url.match(/\/objects?\/([a-z0-9-]+)/i);
-    // Pattern C: ?workspaceId=[ID] or &workspaceId=[ID]
-    const queryMatch = url.match(/[?&]workspaceId=([a-z0-9-]+)/i);
-    // Pattern D: /assets/([a-z0-9-]+) (simple folder match)
-    const simpleMatch = url.match(/\/assets\/([a-z0-9-]+)/i);
-
-    if (schemaMatch) {
-      workspaceId = clean(schemaMatch[1]);
-    } else if (objectsMatch) {
-      workspaceId = clean(objectsMatch[1]);
-    } else if (queryMatch) {
-      workspaceId = clean(queryMatch[1]);
-    } else if (simpleMatch) {
-      const parsed = clean(simpleMatch[1]);
-      // Avoid matching common folders as IDs
-      if (!["object-schema", "objects", "object", "schema"].includes(parsed)) {
-        workspaceId = parsed;
-      }
-    }
-
-    // Write Workspace ID to input
-    if (workspaceId) {
-      const workspaceInput = document.getElementById("api-workspace-id");
-      if (workspaceInput) workspaceInput.value = workspaceId;
-      apiConfig.workspaceId = workspaceId;
-    }
-
-    // Extract optional typeId from URL query string if present
-    const typeIdMatch = url.match(/[?&]typeId=(\d+)/i);
-    if (typeIdMatch) {
-      const extractedTypeId = parseInt(typeIdMatch[1]);
-      if (extractedTypeId) {
-        localStorage.setItem("assetGuard_extracted_type_id", extractedTypeId);
-        console.log("Extracted typeId from URL:", extractedTypeId);
-      }
-    }
-
-    // 2. Try to find Cloud ID / Subdomain
+    // Extract Subdomain from link
     const domainMatch = url.match(/https?:\/\/([a-z0-9-]+)\.(atlassian\.net|jira\.com)/i);
     if (domainMatch) {
-       const sub = domainMatch[1].toLowerCase();
-       if (!["jira", "admin", "id", "assets"].includes(sub)) {
-         localStorage.setItem("assetGuard_subdomain", sub);
-         const cloudInput = document.getElementById("api-cloud-id");
-         if (cloudInput) cloudInput.value = clean(sub);
-         apiConfig.cloudId = sub;
+      const sub = domainMatch[1].toLowerCase();
+      if (!["jira", "admin", "id", "assets"].includes(sub)) {
+        localStorage.setItem("assetGuard_subdomain", sub);
+        const cloudInput = document.getElementById("api-cloud-id");
+        if (cloudInput && !cloudInput.value.includes("-")) {
+          cloudInput.value = clean(sub);
+          apiConfig.cloudId = sub;
+        }
+      }
+    }
          // Render the customized Method B Assistant with direct URLs for their subdomain!
          const assistant = document.getElementById("magic-setup-assistant");
          if (assistant) {
@@ -2370,6 +2448,13 @@ function setupEventListeners() {
       }
     }
 
+    const aqlInput = document.getElementById("api-aql-query");
+    if (aqlInput && aqlInput.value.trim()) {
+      localStorage.setItem("assetGuard_aql_query", aqlInput.value.trim());
+    } else {
+      localStorage.removeItem("assetGuard_aql_query");
+    }
+
     apiConfig = {
       cloudId: cloudIdInputVal,
       workspaceId: workspaceIdInputVal,
@@ -2399,6 +2484,7 @@ function setupEventListeners() {
     if (confirm(t("confirm_clear_all"))) { 
       apiConfig = { cloudId: "", workspaceId: "", email: "", token: "", syncLimit: 100 };
       saveState();
+      localStorage.removeItem("assetGuard_aql_query");
       localStorage.setItem("assetGuard_last_sync_status", "unconfigured");
       localStorage.setItem("assetGuard_last_sync_error", "");
       // Force UI update
@@ -2407,6 +2493,8 @@ function setupEventListeners() {
       document.getElementById("api-email").value = "";
       document.getElementById("api-token").value = "";
       document.getElementById("api-sync-limit").value = "100";
+      const aqlField = document.getElementById("api-aql-query");
+      if (aqlField) aqlField.value = "";
       
       const assistant = document.getElementById("magic-setup-assistant");
       if (assistant) assistant.style.display = "none";
