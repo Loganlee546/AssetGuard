@@ -358,7 +358,7 @@ function updateConnectionUI(status, detailsMsg = "") {
             <strong style="color: var(--text-primary);"><i class="fa-solid fa-shield-halved" style="color: var(--accent-purple);"></i> Fix Reason 1 (Plan / License):</strong><br/>
             If your site is on Jira Service Management Free/Standard, Assets REST APIs do not exist on Atlassian's servers. You can use instant Batch Import instead:
             <div style="margin-top: 6px; display: flex; gap: 8px;">
-              <button type="button" class="btn btn-secondary btn-sm" onclick="openModal('audit-modal')" style="font-size: 11px; padding: 4px 10px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openModal('global-history-modal')" style="font-size: 11px; padding: 4px 10px;">
                 <i class="fa-solid fa-file-import"></i> Open Batch CSV / JSON Importer
               </button>
             </div>
