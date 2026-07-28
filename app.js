@@ -8,7 +8,7 @@ function escapeHTML(str) {
     .replace(/'/g, "&#039;");
 }
 
-let assets = JSON.parse(localStorage.getItem("assetGuard_assets")) || [];
+let assets = [];
 let html5QrScanner = null;
 let activeCategory = "All";
 let activeStatus = "All";
@@ -54,26 +54,36 @@ function saveState() {
 
 // Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
-  // Initialize Data from LocalStorage or start empty
+  // Initialize Data from LocalStorage or use Seeds
   const savedAssets = localStorage.getItem("assetGuard_assets");
   const seeds = window.itAssetSeeds || [];
   
   if (savedAssets) {
     try {
       assets = JSON.parse(savedAssets);
-      // Filter out any mock seed devices to get rid of the fake devices permanently
-      const seedIds = seeds.map(s => (s.id || "").toLowerCase());
-      assets = assets.filter(a => !seedIds.includes((a.id || "").toLowerCase()));
-      saveState();
+      if (!assets || assets.length === 0) {
+        assets = seeds;
+        saveState();
+      }
     } catch (e) {
       console.error("Failed to parse local storage assets, resetting.", e);
-      assets = [];
+      assets = seeds;
       saveState();
     }
   } else {
-    // Start with a completely clean database
-    assets = [];
+    // First time load or storage cleared: use seeds
+    assets = seeds;
     saveState();
+  }
+
+  // Guarantee that at least one Monitor exists so the Monitors tab displays our newly added monitor
+  const hasMonitor = assets.some(a => a.category === "Monitor");
+  if (!hasMonitor) {
+    const defaultMonitor = seeds.find(s => s.category === "Monitor");
+    if (defaultMonitor) {
+      assets.push(defaultMonitor);
+      saveState();
+    }
   }
 
   // Initial Render
@@ -410,19 +420,7 @@ function toggleOfflineUI(isOffline) {
   const emailInput = document.getElementById("api-email");
   const tokenInput = document.getElementById("api-token");
   
-  if (cloudIdInput && workspaceIdInput && emailInput && tokenInput) {
-    if (isOffline) {
-      cloudIdInput.removeAttribute("required");
-      workspaceIdInput.removeAttribute("required");
-      emailInput.removeAttribute("required");
-      tokenInput.removeAttribute("required");
-    } else {
-      cloudIdInput.setAttribute("required", "");
-      workspaceIdInput.setAttribute("required", "");
-      emailInput.setAttribute("required", "");
-      tokenInput.setAttribute("required", "");
-    }
-  }
+  // Inputs are soft-validated in settings-form submit handler to provide clear toast warnings rather than browser blocks.
 
   if (container) {
     if (isOffline) {
@@ -776,6 +774,16 @@ async function syncWithAtlassian() {
   let targetCloudId = apiConfig.cloudId;
   let targetWorkspaceId = apiConfig.workspaceId;
 
+  // Retrieve saved subdomain or extract from cloudId/localStorage
+  let sub = localStorage.getItem("assetGuard_subdomain") || "";
+  if (!sub && apiConfig.cloudId) {
+    if (apiConfig.cloudId.includes(".atlassian.net")) {
+      sub = apiConfig.cloudId.split(".atlassian.net")[0].replace("https://", "").replace("http://", "");
+    } else if (!apiConfig.cloudId.includes("-")) {
+      sub = apiConfig.cloudId.trim();
+    }
+  }
+
   const isSubdomain = !targetCloudId.includes("-");
 
   // Stage 1: Auto-resolve Cloud ID if it is a subdomain
@@ -835,16 +843,6 @@ async function syncWithAtlassian() {
       console.warn("Discarding stale cached base URL due to format mismatch:", atlassianBaseUrl);
       sessionStorage.removeItem("assetGuard_base_url");
       atlassianBaseUrl = "";
-    }
-  }
-
-  // Retrieve saved subdomain or extract from cloudId/localStorage
-  let sub = localStorage.getItem("assetGuard_subdomain") || "";
-  if (!sub && apiConfig.cloudId) {
-    if (apiConfig.cloudId.includes(".atlassian.net")) {
-      sub = apiConfig.cloudId.split(".atlassian.net")[0].replace("https://", "").replace("http://", "");
-    } else if (!apiConfig.cloudId.includes("-")) {
-      sub = apiConfig.cloudId.trim();
     }
   }
 
@@ -2443,6 +2441,15 @@ function setupEventListeners() {
     
     const cloudIdInputVal = document.getElementById("api-cloud-id").value.trim();
     const workspaceIdInputVal = document.getElementById("api-workspace-id").value.trim();
+    const emailInputVal = document.getElementById("api-email").value.trim();
+    const tokenInputVal = document.getElementById("api-token").value.trim();
+
+    if (!isOfflineMode) {
+      if (!cloudIdInputVal || !workspaceIdInputVal || !emailInputVal || !tokenInputVal) {
+        showToast("To save online settings, please fill out Cloud ID, Workspace ID, Email, and API Token. Or toggle 'Local Offline Mode' ON above.", "warning");
+        return;
+      }
+    }
 
     if (cloudIdInputVal) {
       if (!cloudIdInputVal.includes("-")) {
@@ -2831,6 +2838,7 @@ function setupEventListeners() {
       prefillAddAssetForm(parsed);
     }
   });
+}
 }
 
 // Start Camera Stream QR scan
