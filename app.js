@@ -2193,10 +2193,40 @@ function setupEventListeners() {
       }
     }
 
+    // Define variables at the function level to ensure proper scope resolution in callbacks
+    let sub = "";
+    let workspaceId = "";
+
+    // 1. Try to find Workspace ID (Object Schema ID) using multiple pattern fallbacks
+    const schemaMatch = url.match(/\/object-schema\/([a-z0-9-]+)/i);
+    const objectsMatch = url.match(/\/objects?\/([a-z0-9-]+)/i);
+    const queryMatch = url.match(/[?&]workspaceId=([a-z0-9-]+)/i);
+    const simpleMatch = url.match(/\/assets\/([a-z0-9-]+)/i);
+
+    if (schemaMatch) {
+      workspaceId = clean(schemaMatch[1]);
+    } else if (objectsMatch) {
+      workspaceId = clean(objectsMatch[1]);
+    } else if (queryMatch) {
+      workspaceId = clean(queryMatch[1]);
+    } else if (simpleMatch) {
+      const parsed = clean(simpleMatch[1]);
+      if (!["object-schema", "objects", "object", "schema"].includes(parsed)) {
+        workspaceId = parsed;
+      }
+    }
+
+    // Write Workspace ID to input
+    if (workspaceId) {
+      const workspaceInput = document.getElementById("api-workspace-id");
+      if (workspaceInput) workspaceInput.value = workspaceId;
+      apiConfig.workspaceId = workspaceId;
+    }
+
     // Extract Subdomain from link
     const domainMatch = url.match(/https?:\/\/([a-z0-9-]+)\.(atlassian\.net|jira\.com)/i);
     if (domainMatch) {
-      const sub = domainMatch[1].toLowerCase();
+      sub = domainMatch[1].toLowerCase();
       if (!["jira", "admin", "id", "assets"].includes(sub)) {
         localStorage.setItem("assetGuard_subdomain", sub);
         const cloudInput = document.getElementById("api-cloud-id");
