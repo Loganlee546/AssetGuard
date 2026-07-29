@@ -1264,3 +1264,139 @@ input:checked + .slider:before {
     transform: translateY(0);
   }
 }
+
+/* Premium Animated Custom Buttons */
+
+/* Settings Modal Buttons */
+.btn-settings-save {
+  width: 100%;
+  background-color: var(--accent-blue);
+  color: white;
+  font-weight: bold;
+  border-radius: 8px;
+  padding: 12px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(0, 101, 255, 0.15);
+}
+
+.btn-settings-save:hover {
+  background-color: var(--accent-blue-hover);
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(0, 101, 255, 0.3);
+}
+
+.btn-settings-save:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 101, 255, 0.15);
+}
+
+.btn-settings-sync {
+  flex: 1;
+  min-width: 120px;
+  background-color: var(--accent-blue);
+  color: white;
+  border: none;
+  font-weight: bold;
+  border-radius: 8px;
+  padding: 10px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(0, 101, 255, 0.15);
+}
+
+.btn-settings-sync:hover {
+  background-color: var(--accent-blue-hover);
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(0, 101, 255, 0.3);
+}
+
+.btn-settings-sync:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 101, 255, 0.15);
+}
+
+.btn-settings-clear {
+  flex: 1;
+  min-width: 120px;
+  color: var(--status-error);
+  background: rgba(255, 75, 75, 0.08);
+  border: 1px solid rgba(255, 75, 75, 0.15);
+  font-weight: bold;
+  border-radius: 8px;
+  padding: 10px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-settings-clear:hover {
+  background: rgba(255, 75, 75, 0.15);
+  border-color: rgba(255, 75, 75, 0.3);
+  transform: translateY(-1.5px);
+}
+
+.btn-settings-clear:active {
+  transform: translateY(0);
+}
+
+/* Local Backup Importer Buttons */
+.btn-local-import {
+  background: var(--accent-blue);
+  color: white;
+  border: none;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-local-import:hover {
+  background-color: var(--accent-blue-hover);
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(0, 101, 255, 0.25);
+}
+
+.btn-local-import:active {
+  transform: translateY(0);
+}
+
+/* Settings Help Banner Button */
+.btn-settings-help {
+  padding: 6px 12px;
+  background: var(--accent-purple);
+  color: white;
+  border: none;
+  font-weight: bold;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-settings-help:hover {
+  background: #5b4bc4;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(108, 92, 231, 0.3);
+}
+
+.btn-settings-help:active {
+  transform: translateY(0);
+}
